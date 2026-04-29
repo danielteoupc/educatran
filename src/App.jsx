@@ -1419,6 +1419,136 @@ function InventarioKits() {
 }
 
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
+async function generarPDFContrato(contratoId, download = false) {
+  const { data: contrato } = await supabase.from('contratos').select('*, patrocinadores(*), gestores(*)').eq('id', contratoId).single()
+  if (!contrato) return
+
+  const doc = new window.jspdf.jsPDF('p', 'mm', 'A4')
+  const w = 210; const h = 297; const m = 20; let y = m
+  const rojo = '#E63946'; const negro = '#0D1117'; const gris = '#6B7280'
+
+  // Cabecera
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(32); doc.setTextColor(230, 57, 70)
+  doc.text('EDUCATRAN', w/2, y, { align:'center' }); y += 12
+  doc.setFontSize(9); doc.setTextColor(107, 114, 128)
+  doc.text('Sistema de Gestión de Donaciones para Seguridad Vial', w/2, y, { align:'center' }); y += 8
+  doc.setDrawColor(230, 57, 70); doc.line(m, y, w-m, y); y += 6
+
+  // Título
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(13, 17, 23)
+  doc.text('CONTRATO DE DONACIÓN CORPORATIVA', w/2, y, { align:'center' }); y += 10
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(107, 114, 128)
+  doc.text(`N° Contrato: ${contrato.numero_contrato || '—'}`, m, y); y += 5
+  doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-PE')}`, m, y); y += 8
+
+  // Sección 1: Partes involucradas
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(13, 17, 23)
+  doc.text('PARTES INVOLUCRADAS', m, y); y += 6
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(13, 17, 23)
+  doc.text('PRIMERA PARTE (RECEPTOR):', m, y); y += 5
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128)
+  doc.text('Organización: EDUCATRAN', m+5, y); y += 4
+  doc.text('RUC: 20XXXXXXXXX', m+5, y); y += 4
+  doc.text('Representante Legal: [Administrador]', m+5, y); y += 4
+  doc.text('Dirección: Lima, Perú', m+5, y); y += 8
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(13, 17, 23)
+  doc.text('SEGUNDA PARTE (DONANTE):', m, y); y += 5
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128)
+  doc.text(`Empresa: ${contrato.patrocinadores?.razon_social || '—'}`, m+5, y); y += 4
+  doc.text(`Nombre Comercial: ${contrato.patrocinadores?.nombre_comercial || '—'}`, m+5, y); y += 4
+  doc.text(`RUC: ${contrato.patrocinadores?.ruc || '—'}`, m+5, y); y += 4
+  doc.text(`Contacto: ${contrato.patrocinadores?.nombre_contacto || '—'}`, m+5, y); y += 4
+  doc.text(`Email: ${contrato.patrocinadores?.email_contacto || '—'}`, m+5, y); y += 4
+  doc.text(`País: ${contrato.patrocinadores?.pais || '—'}`, m+5, y); y += 8
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(13, 17, 23)
+  doc.text('GESTOR RESPONSABLE:', m, y); y += 5
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128)
+  doc.text(`Nombre: ${contrato.gestores?.nombre} ${contrato.gestores?.apellido || ''}`, m+5, y); y += 4
+  doc.text(`Comisión pactada: 5%`, m+5, y); y += 8
+
+  if (y > h - 40) { doc.addPage(); y = m }
+
+  // Sección 2: Objeto del contrato
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(13, 17, 23)
+  doc.text('OBJETO DEL CONTRATO', m, y); y += 6
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128)
+  const objText = doc.splitTextToSize(`${contrato.descripcion || 'La empresa dona el monto para fabricación de kits de seguridad vial para colegios, distribuidos por bomberos voluntarios.'}`, w - 2*m)
+  doc.text(objText, m, y); y += objText.length * 4 + 4
+
+  if (y > h - 40) { doc.addPage(); y = m }
+
+  // Sección 3: Monto y condiciones
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(13, 17, 23)
+  doc.text('MONTO Y CONDICIONES', m, y); y += 6
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(107, 114, 128)
+  doc.text(`Monto Comprometido: ${fmt(contrato.monto_comprometido, contrato.moneda)}`, m+5, y); y += 4
+  doc.text(`Vigencia: ${fmtDate(contrato.fecha_inicio)} al ${fmtDate(contrato.fecha_fin)}`, m+5, y); y += 4
+  doc.text(`Tipo: ${contrato.tipo}`, m+5, y); y += 4
+  doc.text(`Estado: ${contrato.estado}`, m+5, y); y += 8
+
+  if (y > h - 50) { doc.addPage(); y = m }
+
+  // Sección 4: Cláusulas
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(13, 17, 23)
+  doc.text('CLÁUSULAS', m, y); y += 6
+
+  const clausulas = [
+    { titulo: 'Cláusula 1: Destino de los fondos', texto: 'Los fondos donados serán destinados exclusivamente a la fabricación y distribución de kits educativos de seguridad vial en colegios e instituciones públicas.' },
+    { titulo: 'Cláusula 2: Reconocimiento al donante', texto: 'EDUCATRAN se compromete a reconocer públicamente la contribución del donante en sus comunicaciones y reportes.' },
+    { titulo: 'Cláusula 3: Comisión del gestor', texto: `El gestor ${contrato.gestores?.nombre} recibirá una comisión del 5% sobre el monto donado, conforme a los términos pactados.` },
+    { titulo: 'Cláusula 4: Vigencia', texto: `El presente contrato tiene vigencia desde ${fmtDate(contrato.fecha_inicio)} hasta ${fmtDate(contrato.fecha_fin)}.` }
+  ]
+
+  clausulas.forEach(c => {
+    if (y > h - 30) { doc.addPage(); y = m }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(13, 17, 23)
+    doc.text(c.titulo, m, y); y += 4
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(107, 114, 128)
+    const textoSplit = doc.splitTextToSize(c.texto, w - 2*m - 5)
+    doc.text(textoSplit, m+5, y); y += textoSplit.length * 3.5 + 4
+  })
+
+  if (contrato.notas && y < h - 30) {
+    if (y > h - 40) { doc.addPage(); y = m }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(13, 17, 23)
+    doc.text('OBSERVACIONES ADICIONALES:', m, y); y += 4
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(107, 114, 128)
+    const notasSplit = doc.splitTextToSize(contrato.notas, w - 2*m - 5)
+    doc.text(notasSplit, m+5, y); y += notasSplit.length * 3.5 + 6
+  }
+
+  if (y > h - 50) { doc.addPage(); y = m }
+
+  // Sección 5: Firmas
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(13, 17, 23)
+  doc.text('FIRMAS Y AUTORIZACIONES', m, y); y += 12
+  const colW = (w - 2*m - 10) / 3; const firmaY = y + 25
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(107, 114, 128)
+  doc.line(m, firmaY, m + colW - 5, firmaY)
+  doc.text('Por EDUCATRAN', m, firmaY + 4, { align:'left' }); doc.text('Representante Legal', m, firmaY + 8, { align:'left' })
+
+  doc.line(m + colW + 5, firmaY, m + 2*colW, firmaY)
+  doc.text(`Por ${contrato.patrocinadores?.nombre_comercial || 'Patrocinador'}`, m + colW + 5, firmaY + 4, { align:'left' }); doc.text(contrato.patrocinadores?.nombre_contacto || '', m + colW + 5, firmaY + 8, { align:'left' })
+
+  doc.line(m + 2*colW + 10, firmaY, w - m, firmaY)
+  doc.text('Gestor Responsable', m + 2*colW + 10, firmaY + 4, { align:'left' }); doc.text(`${contrato.gestores?.nombre || ''}`, m + 2*colW + 10, firmaY + 8, { align:'left' })
+
+  // Pie de página
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(107, 114, 128)
+  doc.text('Documento generado por EDUCATRAN | educatran.vercel.app', w/2, h - 8, { align:'center' })
+  doc.text(`Lima, Perú | ${new Date().toLocaleDateString('es-PE')}`, w/2, h - 4, { align:'center' })
+
+  if (download) {
+    doc.save(`Contrato_${contrato.numero_contrato || 'documento'}.pdf`)
+  } else {
+    doc.output('dataurlnewwindow')
+  }
+}
+
 function exportarContratos(rows) {
   const filas = rows.map(r => ({
     'N° Contrato': r.numero_contrato,
@@ -1493,6 +1623,12 @@ function Contratos() {
     { key:'monto_comprometido', label:'Monto', render:(v,r) => v ? <span className="amt">{fmt(v,r.moneda)}</span> : '—' },
     { key:'fecha_fin', label:'Vence', render:v => fmtDate(v) },
     { key:'estado', label:'Estado', render:v => <Tag s={v} /> },
+    { key:'id', label:'Acciones', render:(v,r) => (
+      <div style={{ display:'flex', gap:6, fontSize:12 }}>
+        <button onClick={() => generarPDFContrato(v, false)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#3B82F6' }} title="Ver PDF">📄 Generar</button>
+        <button onClick={() => generarPDFContrato(v, true)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#059669' }} title="Descargar PDF">⬇️ PDF</button>
+      </div>
+    ) },
   ]
   return <Page title="Contratos" data={data} loading={loading} reload={reload} cols={cols} addLabel="Nuevo Contrato" Form={FmContrato} deleteTable="contratos" exportFn={exportarContratos} filterFn={(r,q) => [r.titulo,r.numero_contrato,r.tipo,r.patrocinadores?.nombre_comercial,r.estado].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))} />
 }
