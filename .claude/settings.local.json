@@ -7,7 +7,13 @@
       "PowerShell(netstat *)",
       "Bash(curl -s http://localhost:5173)",
       "Bash(npm install *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git ls-remote *)",
+      "Bash(git pull *)"
     ]
   }
 }

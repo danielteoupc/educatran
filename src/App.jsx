@@ -568,19 +568,20 @@ function Dashboard({ onNavigate }) {
 
   useEffect(() => {
     async function load() {
-      const [rD, rG, rP, rC, rE, rV] = await Promise.all([
+      const [rD, rG, rP, rC, rE, rV, rInv] = await Promise.all([
         supabase.from('donaciones').select('monto,comision_gestor,comision_pagada,estado,fecha_donacion,patrocinadores(nombre_comercial),gestores(nombre,apellido)').order('created_at',{ascending:false}),
         supabase.from('gastos').select('monto,estado'),
         supabase.from('patrocinadores').select('nombre_comercial,total_donado').order('total_donado',{ascending:false}).limit(6),
         supabase.from('colegios').select('id',{count:'exact',head:true}),
         supabase.from('estaciones_bomberos').select('id',{count:'exact',head:true}),
         supabase.from('visitas_entregas').select('id,estado,fecha_visita,cantidad_kits_entregados,colegios(nombre),estaciones_bomberos(nombre)').order('fecha_visita',{ascending:false}).limit(4),
+        supabase.from('inventario_kits').select('cantidad,tipo'),
       ])
       const recibidas = (rD.data||[]).filter(d => d.estado==='recibida')
       const totDon = recibidas.reduce((a,d) => a+(d.monto||0),0)
       const totGas = (rG.data||[]).filter(g => g.estado==='aprobado').reduce((a,g) => a+(g.monto||0),0)
       const totCom = (rD.data||[]).filter(d => d.comision_pagada===true).reduce((a,d) => a+(d.comision_gestor||0),0)
-      const kitsEntregados = (rV.data||[]).filter(v => v.estado==='completada').reduce((a,v) => a+(v.cantidad_kits_entregados||0),0)
+      const kitsEntregados = (rInv.data||[]).filter(r => r.tipo==='salida').reduce((a,r) => a+r.cantidad,0)
       const kitsPorEntregar = (rV.data||[]).filter(v => v.estado==='programada').reduce((a,v) => a+(v.cantidad_kits_entregados||0),0)
       setS({ donaciones:totDon, saldo:totDon-totGas, gastos:totGas, comisiones:totCom, kitsEntregados, kitsPorEntregar, nDon:(rD.data||[]).length, nVis:(rV.data||[]).length, nCol:rC.count||0, nEst:rE.count||0 })
       setDons((rD.data||[]).slice(0,5))
@@ -1161,11 +1162,37 @@ function FmVisita({ onClose, onSave, onError, initial }) {
     if (!f.colegio_id||!f.fecha_visita) { onError('Colegio y fecha son obligatorios'); return }
     setSaving(true)
     const payload = { ...f, bombero_responsable_id:user?.id||null, estacion_id:f.estacion_id||null }
-    const { error } = initial?.id
-      ? await supabase.from('visitas_entregas').update(payload).eq('id', initial.id)
-      : await supabase.from('visitas_entregas').insert(payload)
+    const isNew = !initial?.id
+    const wasNotCompleted = initial?.id && initial.estado !== 'completada'
+    const willBeCompleted = f.estado === 'completada'
+
+    const { error, data } = isNew
+      ? await supabase.from('visitas_entregas').insert(payload)
+      : await supabase.from('visitas_entregas').update(payload).eq('id', initial.id)
+
+    if (error) { setSaving(false); onError(error.message); return }
+
+    // Auto-create inventory entry when visit is completed (new or status change to completada)
+    if (willBeCompleted && (isNew || wasNotCompleted) && f.cantidad_kits_entregados > 0) {
+      const visitaId = isNew ? (data && data[0]?.id) || initial?.id : initial?.id
+      const { data: colegios } = await supabase.from('colegios').select('nombre').eq('id',f.colegio_id)
+      const colegio = colegios?.[0]?.nombre || 'Colegio'
+      const { data: inventory } = await supabase.from('inventario_kits').select('stock_resultante').eq('tipo','ingreso').order('created_at',{ascending:false}).limit(1)
+      const stockActual = inventory?.[0]?.stock_resultante || 0
+      const stockResultante = Math.max(0, stockActual - f.cantidad_kits_entregados)
+
+      const invPayload = {
+        tipo: 'salida',
+        cantidad: f.cantidad_kits_entregados,
+        fecha: f.fecha_visita,
+        motivo: `Entrega en visita a ${colegio}`,
+        visita_id: visitaId,
+        stock_resultante: stockResultante,
+      }
+      await supabase.from('inventario_kits').insert(invPayload)
+    }
+
     setSaving(false)
-    if (error) { onError(error.message); return }
     onSave(initial?.id ? 'Visita actualizada correctamente' : 'Visita registrada correctamente')
   }
   return (
@@ -1341,7 +1368,7 @@ function FmInventario({ onClose, onSave, onError, initial }) {
 }
 
 function InventarioKits() {
-  const { data, loading, reload } = useTable('inventario_kits', '*, kits_juegos(nombre)')
+  const { data, loading, reload } = useTable('inventario_kits', '*, kits_juegos(nombre), visitas_entregas(colegios(nombre))')
 
   const stockTotal = data.reduce((a,r) => a + (r.tipo==='ingreso'?r.cantidad:-r.cantidad),0)
   const totalIngresos = data.filter(r => r.tipo==='ingreso').reduce((a,r) => a+r.cantidad,0)
@@ -1361,6 +1388,7 @@ function InventarioKits() {
     { key:'proveedor', label:'Proveedor', render:v => v||'—' },
     { key:'costo_unitario', label:'Costo Unit.', render:v => v ? fmt(v) : '—' },
     { key:'stock_resultante', label:'Stock Resultante', render:v => <strong>{v}</strong> },
+    { key:'visitas_entregas', label:'Visita Vinculada', render:v => v?.colegios?.nombre ? `📍 ${v.colegios.nombre}` : '—' },
     { key:'motivo', label:'Motivo', render:v => v||'—' },
   ]
 
