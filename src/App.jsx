@@ -1161,10 +1161,24 @@ function FmVisita({ onClose, onSave, onError, initial }) {
   const save = async () => {
     if (!f.colegio_id||!f.fecha_visita) { onError('Colegio y fecha son obligatorios'); return }
     setSaving(true)
-    const payload = { ...f, bombero_responsable_id:user?.id||null, estacion_id:f.estacion_id||null }
     const isNew = !initial?.id
     const wasNotCompleted = initial?.id && initial.estado !== 'completada'
     const willBeCompleted = f.estado === 'completada'
+
+    const payload = {
+      colegio_id: f.colegio_id,
+      estacion_id: f.estacion_id || null,
+      bombero_responsable_id: user?.id || null,
+      fecha_visita: f.fecha_visita,
+      hora_inicio: f.hora_inicio || null,
+      hora_fin: f.hora_fin || null,
+      cantidad_kits_entregados: f.cantidad_kits_entregados,
+      num_alumnos_capacitados: f.num_alumnos_capacitados,
+      num_profesores_presentes: f.num_profesores_presentes,
+      temas_tratados: f.temas_tratados,
+      observaciones: f.observaciones,
+      estado: f.estado
+    }
 
     const { error, data } = isNew
       ? await supabase.from('visitas_entregas').insert(payload)
