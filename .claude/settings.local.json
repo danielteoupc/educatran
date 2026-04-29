@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(taskkill /f /im node.exe)",
+      "PowerShell(taskkill *)",
+      "PowerShell(netstat *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(npm install *)",
+      "Read(//tmp/**)"
+    ]
+  }
+}
