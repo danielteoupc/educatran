@@ -294,7 +294,7 @@ const SM = {
   aprobado:['tag-g','Aprobado'], completada:['tag-g','Completada'],
   programada:['tag-b','Programada'], borrador:['tag-n','Borrador'],
   cancelado:['tag-e','Cancelado'], activa:['tag-g','Activa'],
-  vencido:['tag-a','Vencido'],
+  vencido:['tag-a','Vencido'], ingreso:['tag-g','Ingreso'], salida:['tag-e','Salida'],
 }
 const Tag = ({ s }) => { const [c,l] = SM[s] || ['tag-n', s||'—']; return <span className={`tag ${c}`}>{l}</span> }
 
@@ -314,6 +314,7 @@ const IC = {
   plus: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   srch: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   ref:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="14" height="14"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>,
+  inv:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
 }
 
 // ─── NOTIF ────────────────────────────────────────────────────────────────────
@@ -1220,6 +1221,161 @@ function Visitas() {
   return <Page title="Visitas y Entregas de Kits" data={data} loading={loading} reload={reload} cols={cols} addLabel="Registrar Visita" Form={FmVisita} deleteTable="visitas_entregas" exportFn={exportarVisitas} filterFn={(r,q) => [r.colegios?.nombre,r.estaciones_bomberos?.nombre,r.estado].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))} />
 }
 
+// ─── INVENTARIO KITS ──────────────────────────────────────────────────────────
+function exportarInventario(rows) {
+  const filas = rows.map(r => ({
+    'Fecha': r.fecha,
+    'Tipo': r.tipo,
+    'Kit': r.kits_juegos?.nombre || '—',
+    'Cantidad': r.cantidad,
+    'Lote': r.numero_lote,
+    'Fecha Fabricacion': r.fecha_fabricacion,
+    'Fecha Vencimiento': r.fecha_vencimiento,
+    'Proveedor': r.proveedor || '—',
+    'Costo Unitario': r.costo_unitario || '—',
+    'Costo Total': r.costo_total || '—',
+    'Stock Resultante': r.stock_resultante,
+    'Motivo': r.motivo || '—',
+    'Observaciones': r.observaciones || '—',
+  }))
+  exportXLSX(filas, 'Inventario_Kits')
+}
+
+function FmInventario({ onClose, onSave, onError, initial }) {
+  const [f, setF] = useState(initial ? { ...initial } : {
+    tipo:'ingreso', kit_id:'', cantidad:0, fecha:'', fecha_fabricacion:'',
+    fecha_vencimiento:'', numero_lote:'', proveedor:'', costo_unitario:'',
+    motivo:'', visita_id:'', observaciones:''
+  })
+  const [kits, setKits] = useState([]); const [visitas, setVisitas] = useState([]); const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    supabase.from('kits_juegos').select('id,nombre').then(({data}) => setKits(data||[]))
+    supabase.from('visitas_entregas').select('id,fecha_visita,colegios(nombre)').eq('estado','programada').then(({data}) => setVisitas(data||[]))
+  }, [])
+
+  const up = (k,v) => setF(p => ({...p,[k]:v}))
+
+  const save = async () => {
+    if (!f.kit_id||!f.cantidad||!f.fecha) { onError('Kit, cantidad y fecha son obligatorios'); return }
+    if (f.tipo==='salida' && !f.visita_id) { onError('Para salidas debe vincular una visita'); return }
+
+    setSaving(true)
+
+    const { data: existing } = await supabase.from('inventario_kits').select('cantidad,tipo').eq('kit_id',f.kit_id)
+    const stockActual = (existing||[]).reduce((a,r) => a + (r.tipo==='ingreso'?r.cantidad:-r.cantidad),0)
+
+    if (f.tipo==='salida' && (stockActual - f.cantidad) < 0) {
+      setSaving(false)
+      onError(`Stock insuficiente. Disponible: ${stockActual}, Solicitado: ${f.cantidad}`)
+      return
+    }
+
+    const stockResultante = f.tipo==='ingreso' ? stockActual + parseInt(f.cantidad) : stockActual - parseInt(f.cantidad)
+    const payload = {
+      ...f,
+      cantidad: parseInt(f.cantidad),
+      costo_unitario: f.costo_unitario ? parseFloat(f.costo_unitario) : null,
+      costo_total: f.costo_unitario ? parseFloat(f.costo_unitario) * parseInt(f.cantidad) : null,
+      stock_resultante: stockResultante,
+      visita_id: f.visita_id || null,
+    }
+
+    const { error } = initial?.id
+      ? await supabase.from('inventario_kits').update(payload).eq('id', initial.id)
+      : await supabase.from('inventario_kits').insert(payload)
+
+    if (!error && !initial?.id && f.kit_id) {
+      await supabase.from('kits_juegos').update({ cantidad_disponible:stockResultante }).eq('id',f.kit_id)
+    }
+
+    setSaving(false)
+    if (error) { onError(error.message); return }
+    onSave(initial?.id ? 'Movimiento actualizado correctamente' : 'Movimiento registrado exitosamente')
+  }
+
+  return (
+    <>
+      <div className="modal-t">{initial?.id ? '✏️ Editar' : '📦 Nuevo'} Movimiento</div>
+      <div className="fgrid">
+        <div className="fg"><label className="fl">Tipo *</label>
+          <select value={f.tipo} onChange={e => up('tipo',e.target.value)}>
+            <option value="ingreso">Ingreso</option>
+            <option value="salida">Salida</option>
+          </select>
+        </div>
+        <div className="fg"><label className="fl">Kit de Juego *</label>
+          <select value={f.kit_id} onChange={e => up('kit_id',e.target.value)}>
+            <option value="">— Seleccionar kit —</option>
+            {kits.map(k => <option key={k.id} value={k.id}>{k.nombre}</option>)}
+          </select>
+        </div>
+        <div className="fg"><label className="fl">Cantidad *</label><input type="number" min="0" value={f.cantidad} onChange={e => up('cantidad',e.target.value)} /></div>
+        <div className="fg"><label className="fl">Fecha *</label><input type="date" value={f.fecha} onChange={e => up('fecha',e.target.value)} /></div>
+        <div className="fg"><label className="fl">Fecha Fabricación</label><input type="date" value={f.fecha_fabricacion} onChange={e => up('fecha_fabricacion',e.target.value)} /></div>
+        <div className="fg"><label className="fl">Fecha Vencimiento</label><input type="date" value={f.fecha_vencimiento} onChange={e => up('fecha_vencimiento',e.target.value)} /></div>
+        <div className="fg"><label className="fl">N° Lote</label><input value={f.numero_lote} onChange={e => up('numero_lote',e.target.value)} /></div>
+        {f.tipo==='ingreso' && (
+          <>
+            <div className="fg"><label className="fl">Proveedor</label><input value={f.proveedor} onChange={e => up('proveedor',e.target.value)} /></div>
+            <div className="fg"><label className="fl">Costo Unitario</label><input type="number" min="0" step="0.01" value={f.costo_unitario} onChange={e => up('costo_unitario',e.target.value)} /></div>
+          </>
+        )}
+        {f.tipo==='salida' && (
+          <div className="fg"><label className="fl">Visita Vinculada *</label>
+            <select value={f.visita_id} onChange={e => up('visita_id',e.target.value)}>
+              <option value="">— Seleccionar visita —</option>
+              {visitas.map(v => <option key={v.id} value={v.id}>{v.colegios?.nombre} - {fmtDate(v.fecha_visita)}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="fg full"><label className="fl">Motivo</label><input value={f.motivo} onChange={e => up('motivo',e.target.value)} placeholder="Compra, donacion, entrega programada, etc." /></div>
+        <div className="fg full"><label className="fl">Observaciones</label><textarea value={f.observaciones} onChange={e => up('observaciones',e.target.value)} /></div>
+      </div>
+      <div className="modal-f">
+        <button className="btn btn-s" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-p" onClick={save} disabled={saving}>{saving ? <><span className="spin" /> Guardando...</> : 'Registrar Movimiento'}</button>
+      </div>
+    </>
+  )
+}
+
+function InventarioKits() {
+  const { data, loading, reload } = useTable('inventario_kits', '*, kits_juegos(nombre)')
+
+  const stockTotal = data.reduce((a,r) => a + (r.tipo==='ingreso'?r.cantidad:-r.cantidad),0)
+  const totalIngresos = data.filter(r => r.tipo==='ingreso').reduce((a,r) => a+r.cantidad,0)
+  const totalSalidas = data.filter(r => r.tipo==='salida').reduce((a,r) => a+r.cantidad,0)
+  const costoPromedio = data.filter(r => r.costo_unitario).length > 0
+    ? data.filter(r => r.costo_unitario).reduce((a,r) => a+r.costo_unitario,0) / data.filter(r => r.costo_unitario).length
+    : 0
+  const valorStock = stockTotal * costoPromedio
+
+  const cols = [
+    { key:'fecha', label:'Fecha', render:v => fmtDate(v) },
+    { key:'tipo', label:'Tipo', render:v => <Tag s={v} /> },
+    { key:'kits_juegos', label:'Kit', render:v => v?.nombre||'—' },
+    { key:'numero_lote', label:'Lote', render:v => v||'—' },
+    { key:'cantidad', label:'Cantidad', render:v => <span className="tag tag-b">{v} unid.</span> },
+    { key:'fecha_fabricacion', label:'Fab.', render:v => fmtDate(v) },
+    { key:'proveedor', label:'Proveedor', render:v => v||'—' },
+    { key:'costo_unitario', label:'Costo Unit.', render:v => v ? fmt(v) : '—' },
+    { key:'stock_resultante', label:'Stock Resultante', render:v => <strong>{v}</strong> },
+    { key:'motivo', label:'Motivo', render:v => v||'—' },
+  ]
+
+  const header = (
+    <div className="fin-bar">
+      <div className="fin-tile"><div className="fin-l">Stock Total</div><div className="fin-v">{stockTotal} unid.</div></div>
+      <div className="fin-tile"><div className="fin-l">Total Ingresos</div><div className="fin-v" style={{color:'var(--g)'}}>{totalIngresos} unid.</div></div>
+      <div className="fin-tile"><div className="fin-l">Total Salidas</div><div className="fin-v" style={{color:'var(--e)'}}>- {totalSalidas} unid.</div></div>
+      <div className="fin-tile"><div className="fin-l">Valor en Stock</div><div className="fin-v">{fmt(valorStock)}</div></div>
+    </div>
+  )
+
+  return <Page title="Inventario de Kits" data={data} loading={loading} reload={reload} cols={cols} addLabel="Nuevo Movimiento" Form={FmInventario} deleteTable="inventario_kits" exportFn={exportarInventario} headerExtra={header} filterFn={(r,q) => [r.tipo,r.numero_lote,r.proveedor,r.motivo,fmtDate(r.fecha)].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))} />
+}
+
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
 function exportarContratos(rows) {
   const filas = rows.map(r => ({
@@ -1469,8 +1625,9 @@ const NAV = [
   { id:'estaciones',   label:'Estaciones Bomberos',  icon:IC.fire, roles:['admin'],           sec:'Operaciones' },
   { id:'colegios',     label:'Colegios',             icon:IC.sch,  roles:['admin'],           sec:'Operaciones' },
   { id:'visitas',      label:'Visitas / Entregas',   icon:IC.vis,  roles:['admin','bombero'], sec:'Operaciones' },
+  { id:'inventario',   label:'Inventario Kits',      icon:IC.inv,  roles:['admin'],           sec:'Operaciones' },
 ]
-const PAGES = { dashboard:Dashboard, donaciones:Donaciones, patrocinadores:Patrocinadores, contratos:Contratos, gestores:Gestores, comisiones:Comisiones, gastos:Gastos, estaciones:Estaciones, colegios:Colegios, visitas:Visitas }
+const PAGES = { dashboard:Dashboard, donaciones:Donaciones, patrocinadores:Patrocinadores, contratos:Contratos, gestores:Gestores, comisiones:Comisiones, gastos:Gastos, estaciones:Estaciones, colegios:Colegios, visitas:Visitas, inventario:InventarioKits }
 const ROLE_LABELS = { admin:'Administrador', gestor:'Gestor', bombero:'Bombero', auditor:'Auditor' }
 
 // ─── SHELL ────────────────────────────────────────────────────────────────────
