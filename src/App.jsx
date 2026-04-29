@@ -568,7 +568,7 @@ function Dashboard({ onNavigate }) {
   useEffect(() => {
     async function load() {
       const [rD, rG, rP, rC, rE, rV] = await Promise.all([
-        supabase.from('donaciones').select('monto,comision_gestor,estado,fecha_donacion,patrocinadores(nombre_comercial),gestores(nombre,apellido)').order('created_at',{ascending:false}),
+        supabase.from('donaciones').select('monto,comision_gestor,comision_pagada,estado,fecha_donacion,patrocinadores(nombre_comercial),gestores(nombre,apellido)').order('created_at',{ascending:false}),
         supabase.from('gastos').select('monto,estado'),
         supabase.from('patrocinadores').select('nombre_comercial,total_donado').order('total_donado',{ascending:false}).limit(6),
         supabase.from('colegios').select('id',{count:'exact',head:true}),
@@ -578,9 +578,10 @@ function Dashboard({ onNavigate }) {
       const recibidas = (rD.data||[]).filter(d => d.estado==='recibida')
       const totDon = recibidas.reduce((a,d) => a+(d.monto||0),0)
       const totGas = (rG.data||[]).filter(g => g.estado==='aprobado').reduce((a,g) => a+(g.monto||0),0)
-      const totCom = (rD.data||[]).reduce((a,d) => a+(d.comision_gestor||0),0)
-      const totKits = (rV.data||[]).reduce((a,v) => a+(v.cantidad_kits_entregados||0),0)
-      setS({ donaciones:totDon, saldo:totDon-totGas, gastos:totGas, comisiones:totCom, kits:totKits, nDon:(rD.data||[]).length, nVis:(rV.data||[]).length, nCol:rC.count||0, nEst:rE.count||0 })
+      const totCom = (rD.data||[]).filter(d => d.comision_pagada===true).reduce((a,d) => a+(d.comision_gestor||0),0)
+      const kitsEntregados = (rV.data||[]).filter(v => v.estado==='completada').reduce((a,v) => a+(v.cantidad_kits_entregados||0),0)
+      const kitsPorEntregar = (rV.data||[]).filter(v => v.estado==='programada').reduce((a,v) => a+(v.cantidad_kits_entregados||0),0)
+      setS({ donaciones:totDon, saldo:totDon-totGas, gastos:totGas, comisiones:totCom, kitsEntregados, kitsPorEntregar, nDon:(rD.data||[]).length, nVis:(rV.data||[]).length, nCol:rC.count||0, nEst:rE.count||0 })
       setDons((rD.data||[]).slice(0,5))
       setPats(rP.data||[])
       setVis(rV.data||[])
@@ -658,10 +659,10 @@ function Dashboard({ onNavigate }) {
 
   const statCards = [
     { l:'Total Donaciones',  v:fmt(s.donaciones), sub:`${s.nDon} registradas`,      ico:'💰', bg:'#FEF2F2', page:'donaciones' },
-    { l:'Saldo Disponible',  v:fmt(s.saldo),      sub:'Fondos activos',              ico:'💳', bg:'#ECFDF5', vc:'#059669', page:'gastos' },
+    { l:'Saldo Disponible',  v:fmt(s.saldo),      sub:'Fondos activos',              ico:'💳', bg:'#ECFDF5', vc:'#059669', page:'donaciones' },
     { l:'Total Gastos',      v:fmt(s.gastos),     sub:'Kits + equipos + operativos', ico:'📦', bg:'#EFF6FF', vc:'#2563EB', page:'gastos' },
-    { l:'Comisiones Gestores',v:fmt(s.comisiones),sub:'5% por donacion gestionada',  ico:'🤝', bg:'#FFFBEB', vc:'#D97706', page:'comisiones' },
-    { l:'Kits Entregados',   v:s.kits,            sub:'Entregas realizadas',         ico:'🎮', bg:'#F0FDF4', page:'visitas' },
+    { l:'Comisiones Gestores',v:fmt(s.comisiones),sub:'Comisiones pagadas',         ico:'🤝', bg:'#FFFBEB', vc:'#D97706', page:'comisiones' },
+    { l:'Kits Entregados',   v:s.kitsEntregados,  sub:`${s.kitsPorEntregar} por entregar`, ico:'🎮', bg:'#F0FDF4', page:'visitas' },
   ]
 
   return (
@@ -1459,7 +1460,7 @@ function Comisiones() {
 // ─── NAV CONFIG ───────────────────────────────────────────────────────────────
 const NAV = [
   { id:'dashboard',    label:'Dashboard',           icon:IC.dash, roles:['admin','gestor','auditor','bombero'] },
-  { id:'donaciones',   label:'Donaciones',           icon:IC.don,  roles:['admin','gestor'],  sec:'Fondos' },
+  { id:'donaciones',   label:'Patrocinios',          icon:IC.don,  roles:['admin','gestor'],  sec:'Fondos' },
   { id:'patrocinadores',label:'Patrocinadores',      icon:IC.pat,  roles:['admin','gestor'],  sec:'Fondos' },
   { id:'contratos',    label:'Contratos',            icon:IC.doc,  roles:['admin','gestor'],  sec:'Fondos' },
   { id:'gestores',     label:'Gestores',             icon:IC.gest, roles:['admin'],           sec:'Administracion' },
