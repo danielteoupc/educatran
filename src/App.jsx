@@ -1013,23 +1013,32 @@ function FmEstacion({ onClose, onSave, onError, initial }) {
   const [f, setF] = useState(initial ? { ...initial } : { nombre:'', codigo:'', departamento:'Lima', provincia:'Lima', distrito:'', direccion:'', telefono:'', email:'', comandante:'', num_voluntarios:0, logo_url:'', activa:true, notas:'' })
   const [saving, setSaving] = useState(false)
   const [logoPreview, setLogoPreview] = useState(initial?.logo_url || null)
-  const [uploading, setUploading] = useState(false)
   const up = (k,v) => setF(p => ({...p,[k]:v}))
   const handleLogoUpload = async (file) => {
-    if (!file) return
-    setUploading(true)
-    try {
-      const ext = file.name.split('.').pop()
-      const filename = `estacion-${Date.now()}.${ext}`
-      const { data, error } = await supabase.storage.from('logos-estaciones').upload(filename, file, { upsert: true })
-      if (error) throw error
-      const { data: { publicUrl } } = supabase.storage.from('logos-estaciones').getPublicUrl(data.path)
-      up('logo_url', publicUrl)
-      setLogoPreview(publicUrl)
-    } catch (e) {
-      onError('Error al subir logo: ' + e.message)
+    if (!file) return null
+    const ext = file.name.split('.').pop()
+    const fileName = `estacion-${Date.now()}.${ext}`
+
+    const { data, error } = await supabase.storage
+      .from('logos-estaciones')
+      .upload(fileName, file, {
+        contentType: file.type,
+        upsert: true
+      })
+
+    if (error) {
+      console.error('Upload error:', error)
+      onError('Error al subir logo: ' + error.message)
+      return null
     }
-    setUploading(false)
+
+    const { data: urlData } = supabase.storage
+      .from('logos-estaciones')
+      .getPublicUrl(fileName)
+
+    up('logo_url', urlData.publicUrl)
+    setLogoPreview(urlData.publicUrl)
+    return urlData.publicUrl
   }
   const save = async () => {
     if (!f.nombre) { onError('El nombre es obligatorio'); return }
@@ -1045,7 +1054,7 @@ function FmEstacion({ onClose, onSave, onError, initial }) {
     <>
       <div className="modal-t">{initial?.id ? '✏️ Editar' : '🚒 Nueva'} Estacion</div>
       <div className="fgrid">
-        <div className="fg full"><label className="fl">Logo de la Estacion</label><input type="file" accept="image/*" onChange={e => handleLogoUpload(e.target.files?.[0])} disabled={uploading} />{logoPreview && <img src={logoPreview} style={{width:80, height:80, objectFit:'contain', marginTop:8}} />}</div>
+        <div className="fg full"><label className="fl">Logo de la Estacion</label><input type="file" accept="image/*" onChange={e => handleLogoUpload(e.target.files?.[0])} />{logoPreview && <img src={logoPreview} style={{width:80, height:80, objectFit:'contain', marginTop:8}} />}</div>
         <div className="fg full"><label className="fl">Nombre de la Estacion *</label><input value={f.nombre} onChange={e => up('nombre',e.target.value)} placeholder="CIA. de Bomberos Lima N°1" /></div>
         <div className="fg"><label className="fl">Codigo</label><input value={f.codigo} onChange={e => up('codigo',e.target.value)} placeholder="CB-LIM-001" /></div>
         <div className="fg"><label className="fl">Comandante</label><input value={f.comandante} onChange={e => up('comandante',e.target.value)} placeholder="Cnel. Nombre Apellido" /></div>
@@ -1078,7 +1087,7 @@ function Estaciones() {
   const [notif, setNotif] = useState(null)
   const showN = (msg, type = 'ok') => setNotif({ msg, type })
   const cols = [
-    { key:'nombre', label:'Estacion', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:8}}>{r.logo_url ? <img src={r.logo_url} style={{width:32,height:32,objectFit:'contain'}} alt="" /> : <span>🚒</span>}<div style={{flex:1}}><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div><div className="st-extra">{r.logo_url && <img src={r.logo_url} style={{width:20,height:20,objectFit:'contain'}} alt="" />}<span>{r.email||'—'}</span>|<span>{r.telefono||'—'}</span>|<span>{r.direccion||'—'}</span></div></div></div></> },
+    { key:'nombre', label:'Estacion', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:8}}>{r.logo_url ? <img src={r.logo_url} style={{width:48,height:48,objectFit:'contain'}} alt="" /> : <span style={{fontSize:32}}>🚒</span>}<div style={{flex:1}}><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div><div className="st-extra">{r.logo_url ? <img src={r.logo_url} style={{width:48,height:48,objectFit:'contain'}} alt="" /> : <span style={{fontSize:24}}>🚒</span>}<span>{r.email||'—'}</span>|<span>{r.telefono||'—'}</span>|<span>{r.direccion||'—'}</span></div></div></div></> },
     { key:'departamento', label:'Ubicacion', render:(v,r) => `${r.distrito||'—'}, ${v}` },
     { key:'comandante', label:'Comandante' },
     { key:'num_voluntarios', label:'Voluntarios', render:v => <span className="tag tag-b">{v||0}</span> },
