@@ -179,15 +179,11 @@ textarea{resize:vertical;min-height:72px}
 .ib-a{background:var(--ab);color:#92400E;border:1px solid #FDE68A}
 .ib-g{background:var(--gb);color:#065F46;border:1px solid #A7F3D0}
 
-/* HOVER TOOLTIP */
-.st-row{transition:background-color .2s ease}
-.st-row:hover{background-color:#F0F9FF}
-.st-tooltip{position:fixed;background:var(--w);border:1px solid var(--br);border-radius:var(--rad);padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:220px;z-index:100;animation:fadeIn .2s ease}
-.st-tooltip-img{width:80px;height:80px;object-fit:contain;margin-bottom:12px}
-.st-tooltip-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px}
-.st-tooltip-label{color:var(--t3);font-weight:600}
-.st-tooltip-value{color:var(--t1);font-weight:500}
-@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+/* ROW HOVER EXPANSION */
+tbody tr{transition:all .2s ease}
+tbody tr:hover{background:#FEF2F2}
+.st-extra{display:none;font-size:11px;color:var(--t3);gap:16px;padding-top:4px;align-items:center;flex-wrap:wrap}
+tbody tr:hover .st-extra{display:flex}
 `
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -1071,24 +1067,9 @@ function FmEstacion({ onClose, onSave, onError, initial }) {
   )
 }
 
-function EstacionesTooltip({ row, position }) {
-  if (!row) return null
-  return (
-    <div className="st-tooltip" style={{ left:position.x+'px', top:position.y+'px' }}>
-      {row.logo_url && <img src={row.logo_url} className="st-tooltip-img" alt="" />}
-      <div style={{ marginBottom:12 }}><strong>{row.nombre}</strong></div>
-      <div className="st-tooltip-row"><span className="st-tooltip-label">Código:</span><span className="st-tooltip-value">{row.codigo||'—'}</span></div>
-      <div className="st-tooltip-row"><span className="st-tooltip-label">Comandante:</span><span className="st-tooltip-value">{row.comandante||'—'}</span></div>
-      <div className="st-tooltip-row"><span className="st-tooltip-label">Voluntarios:</span><span className="st-tooltip-value">{row.num_voluntarios||0}</span></div>
-      <div className="st-tooltip-row"><span className="st-tooltip-label">Ubicación:</span><span className="st-tooltip-value">{row.distrito||'—'}, {row.departamento||'—'}</span></div>
-    </div>
-  )
-}
 
 function Estaciones() {
   const { data, loading, reload } = useTable('estaciones_bomberos')
-  const [hoverRow, setHoverRow] = useState(null)
-  const [tooltipPos, setTooltipPos] = useState({ x:0, y:0 })
   const [modal, setModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
   const [viewRow, setViewRow] = useState(null)
@@ -1097,17 +1078,12 @@ function Estaciones() {
   const [notif, setNotif] = useState(null)
   const showN = (msg, type = 'ok') => setNotif({ msg, type })
   const cols = [
-    { key:'nombre', label:'Estacion', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:8}}>{r.logo_url ? <img src={r.logo_url} style={{width:32,height:32,objectFit:'contain'}} alt="" /> : <span>🚒</span>}<div><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div></div></div></> },
+    { key:'nombre', label:'Estacion', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:8}}>{r.logo_url ? <img src={r.logo_url} style={{width:32,height:32,objectFit:'contain'}} alt="" /> : <span>🚒</span>}<div style={{flex:1}}><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div><div className="st-extra">{r.logo_url && <img src={r.logo_url} style={{width:20,height:20,objectFit:'contain'}} alt="" />}<span>{r.email||'—'}</span>|<span>{r.telefono||'—'}</span>|<span>{r.direccion||'—'}</span></div></div></div></> },
     { key:'departamento', label:'Ubicacion', render:(v,r) => `${r.distrito||'—'}, ${v}` },
     { key:'comandante', label:'Comandante' },
     { key:'num_voluntarios', label:'Voluntarios', render:v => <span className="tag tag-b">{v||0}</span> },
     { key:'activa', label:'Estado', render:v => <Tag s={v?'activa':'inactivo'} /> },
   ]
-  const handleRowHover = (row, e) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    setHoverRow(row)
-    setTooltipPos({ x:rect.right+10, y:rect.top })
-  }
   const doDelete = async () => {
     setDeleting(true)
     const { error } = await supabase.from('estaciones_bomberos').delete().eq('id', deleteRow.id)
@@ -1141,7 +1117,7 @@ function Estaciones() {
                   {data.length === 0
                     ? <tr><td colSpan={cols.length+1} style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</td></tr>
                     : data.map((row, i) => (
-                      <tr key={row.id||i} className="st-row" onMouseEnter={e => handleRowHover(row, e)} onMouseLeave={() => setHoverRow(null)}>
+                      <tr key={row.id||i}>
                         {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
                         <td>
                           <div style={{ display:'flex', gap:4 }}>
@@ -1157,7 +1133,6 @@ function Estaciones() {
               </table>
           }
         </div>
-        <EstacionesTooltip row={hoverRow} position={tooltipPos} />
       </div>
 
       {modal && (
