@@ -974,9 +974,32 @@ function exportarPatrocinadores(rows) {
 }
 
 function FmPatrocinador({ onClose, onSave, onError, initial }) {
-  const [f, setF] = useState(initial ? { ...initial } : { razon_social:'', nombre_comercial:'', ruc:'', pais:'Peru', ciudad:'Lima', direccion:'', email_contacto:'', telefono_contacto:'', nombre_contacto:'', sector:'Automotriz', activo:true, notas:'' })
+  const [f, setF] = useState(initial ? { ...initial } : { razon_social:'', nombre_comercial:'', ruc:'', pais:'Peru', ciudad:'Lima', direccion:'', email_contacto:'', telefono_contacto:'', nombre_contacto:'', sector:'Automotriz', logo_url:'', activo:true, notas:'' })
   const [saving, setSaving] = useState(false)
+  const [logoPreview, setLogoPreview] = useState(initial?.logo_url || null)
   const up = (k,v) => setF(p => ({...p,[k]:v}))
+  const handleLogoUpload = async (file) => {
+    if (!file) return null
+    const ext = file.name.split('.').pop()
+    const fileName = `patrocinador-${Date.now()}.${ext}`
+    const { data, error } = await supabase.storage
+      .from('logos-patrocinadores')
+      .upload(fileName, file, {
+        contentType: file.type,
+        upsert: true
+      })
+    if (error) {
+      console.error('Upload error:', error)
+      onError('Error al subir logo: ' + error.message)
+      return null
+    }
+    const { data: urlData } = supabase.storage
+      .from('logos-patrocinadores')
+      .getPublicUrl(fileName)
+    up('logo_url', urlData.publicUrl)
+    setLogoPreview(urlData.publicUrl)
+    return urlData.publicUrl
+  }
   const save = async () => {
     if (!f.razon_social) { onError('Razon social es obligatoria'); return }
     setSaving(true)
@@ -991,6 +1014,7 @@ function FmPatrocinador({ onClose, onSave, onError, initial }) {
     <>
       <div className="modal-t">{initial?.id ? '✏️ Editar' : '🏢 Nuevo'} Patrocinador</div>
       <div className="fgrid">
+        <div className="fg full"><label className="fl">Logo</label><input type="file" accept="image/*" onChange={e => handleLogoUpload(e.target.files?.[0])} />{logoPreview && <img src={logoPreview} style={{width:60, height:60, objectFit:'contain', marginTop:8}} />}</div>
         <div className="fg"><label className="fl">Razon Social *</label><input value={f.razon_social} onChange={e => up('razon_social',e.target.value)} placeholder="Empresa S.A." /></div>
         <div className="fg"><label className="fl">Nombre Comercial / Marca</label><input value={f.nombre_comercial} onChange={e => up('nombre_comercial',e.target.value)} placeholder="Toyota Peru" /></div>
         <div className="fg"><label className="fl">RUC / Tax ID</label><input value={f.ruc} onChange={e => up('ruc',e.target.value)} placeholder="20100000000" /></div>
@@ -1017,7 +1041,7 @@ function FmPatrocinador({ onClose, onSave, onError, initial }) {
 function Patrocinadores() {
   const { data, loading, reload } = useTable('patrocinadores')
   const cols = [
-    { key:'nombre_comercial', label:'Marca / Empresa', render:(v,r) => <><strong>{v||r.razon_social}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>{r.razon_social}</div></> },
+    { key:'nombre_comercial', label:'Marca / Empresa', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:10}}>{r.logo_url ? <img src={r.logo_url} style={{width:36,height:36,objectFit:'contain',borderRadius:6,border:'1px solid #E8EAF0'}} alt="" /> : <div style={{width:36,height:36,background:'#F3F4F6',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>🏢</div>}<div><strong>{v||r.razon_social}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>{r.razon_social}</div></div></div></> },
     { key:'pais', label:'Pais' },
     { key:'sector', label:'Sector', render:v => <span className="tag tag-b">{v}</span> },
     { key:'nombre_contacto', label:'Contacto', render:(v,r) => <><div>{v||'—'}</div><div style={{ color:'var(--t3)',fontSize:11 }}>{r.email_contacto}</div></> },
@@ -2142,6 +2166,29 @@ function InventarioKits() {
 }
 
 // ─── CONTRATOS ────────────────────────────────────────────────────────────────
+async function subirPDFFirmado(contratoId, file) {
+  if (!file) return
+  try {
+    const fileName = `contrato-${contratoId}-firmado.pdf`
+    const { error: uploadErr } = await supabase.storage
+      .from('contratos-pdf')
+      .upload(fileName, file, { upsert: true })
+    if (uploadErr) throw uploadErr
+    const { data: { publicUrl } } = supabase.storage
+      .from('contratos-pdf')
+      .getPublicUrl(fileName)
+    const { error: updateErr } = await supabase.from('contratos').update({
+      pdf_firmado_url: publicUrl,
+      pdf_firmado_fecha: new Date().toISOString()
+    }).eq('id', contratoId)
+    if (updateErr) throw updateErr
+    alert('PDF firmado subido correctamente')
+    window.location.reload()
+  } catch (e) {
+    alert('Error al subir PDF: ' + e.message)
+  }
+}
+
 async function generarPDFContrato(contratoId, download = false) {
   const { data: contrato } = await supabase.from('contratos').select('*, patrocinadores(*), gestores(*)').eq('id', contratoId).single()
   if (!contrato) return
@@ -2345,11 +2392,14 @@ function Contratos() {
     { key:'patrocinadores', label:'Patrocinador', render:v => v?.nombre_comercial||'—' },
     { key:'monto_comprometido', label:'Monto', render:(v,r) => v ? <span className="amt">{fmt(v,r.moneda)}</span> : '—' },
     { key:'fecha_fin', label:'Vence', render:v => fmtDate(v) },
-    { key:'estado', label:'Estado', render:v => <Tag s={v} /> },
+    { key:'estado', label:'Estado', render:(v,r) => <div style={{display:'flex',gap:6,alignItems:'center'}}><Tag s={v} />{r.pdf_firmado_url && <span className="tag tag-g">✅ Firmado</span>}{!r.pdf_firmado_url && <span className="tag tag-a">⚠️ Sin firmar</span>}</div> },
     { key:'id', label:'Acciones', render:(v,r) => (
-      <div style={{ display:'flex', gap:6, fontSize:12 }}>
-        <button onClick={() => generarPDFContrato(v, false)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#3B82F6' }} title="Ver PDF">📄 Generar</button>
-        <button onClick={() => generarPDFContrato(v, true)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#059669' }} title="Descargar PDF">⬇️ PDF</button>
+      <div style={{ display:'flex', gap:4, fontSize:11, flexWrap:'wrap' }}>
+        <button onClick={() => generarPDFContrato(v, false)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#3B82F6' }} title="Ver PDF">📄</button>
+        <button onClick={() => generarPDFContrato(v, true)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#059669' }} title="Descargar PDF">⬇️</button>
+        <label style={{cursor:'pointer', color:'#2563EB', textDecoration:'underline'}} title="Subir PDF firmado">📎 <input type="file" accept=".pdf" onChange={e => subirPDFFirmado(v, e.target.files?.[0])} style={{display:'none'}} /></label>
+        {r.pdf_firmado_url && <button onClick={() => window.open(r.pdf_firmado_url, '_blank')} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#7C3AED' }} title="Ver PDF firmado">👁️</button>}
+        {r.pdf_firmado_url && <a href={r.pdf_firmado_url} download={`Contrato_${r.numero_contrato}_firmado.pdf`} style={{textDecoration:'none', color:'#059669'}} title="Descargar PDF firmado">📥</a>}
       </div>
     ) },
   ]
