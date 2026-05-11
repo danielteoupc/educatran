@@ -1157,6 +1157,15 @@ function GaleriaFotos({ tabla, foreignKey, foreignId, titulo, extraInfo, placeho
               <div className="gal-info">
                 {foto.descripcion && <div className="gal-desc">{foto.descripcion}</div>}
                 <div className="gal-date">{new Date(foto.fecha).toLocaleDateString('es-PE')}</div>
+                <a
+                  href={foto.url}
+                  download={`foto-${foto.id}.jpg`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{display:'inline-block',padding:'4px 8px',background:'#EFF6FF',color:'#2563EB',borderRadius:4,fontSize:11,fontWeight:600,textDecoration:'none',marginTop:4}}
+                >
+                  ⬇️ Descargar
+                </a>
               </div>
             </div>
           ))}
@@ -1518,6 +1527,16 @@ function FmColegio({ onClose, onSave, onError, initial }) {
 
 function Colegios() {
   const { data, loading, reload } = useTable('colegios','*, estaciones_bomberos(nombre)')
+  const [modal, setModal] = useState(false)
+  const [galeriaRow, setGaleriaRow] = useState(null)
+  const [editRow, setEditRow] = useState(null)
+  const [viewRow, setViewRow] = useState(null)
+  const [deleteRow, setDeleteRow] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [notif, setNotif] = useState(null)
+  const showN = (msg, type = 'ok') => setNotif({ msg, type })
+  const [q, setQ] = useState('')
+
   const cols = [
     { key:'nombre', label:'Institucion Educativa', render:(v,r) => <><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Dir: {r.director||'—'}</div></> },
     { key:'nivel', label:'Nivel', render:v => <span className="tag tag-n">{v}</span> },
@@ -1526,7 +1545,155 @@ function Colegios() {
     { key:'estaciones_bomberos', label:'Estacion', render:v => v ? <span style={{ color:'var(--b)',fontSize:12 }}>🚒 {v.nombre}</span> : <span style={{ color:'var(--t3)' }}>Sin asignar</span> },
     { key:'activo', label:'Estado', render:v => <Tag s={v?'activo':'inactivo'} /> },
   ]
-  return <Page title="Colegios" data={data} loading={loading} reload={reload} cols={cols} addLabel="Nuevo Colegio" Form={FmColegio} deleteTable="colegios" exportFn={exportarColegios} filterFn={(r,q) => [r.nombre,r.director,r.distrito,r.departamento,r.estaciones_bomberos?.nombre].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))} />
+
+  const filtered = data.filter(row => {
+    if (!q) return true
+    return [row.nombre,row.director,row.distrito,row.departamento,row.estaciones_bomberos?.nombre].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))
+  })
+
+  const doDelete = async () => {
+    setDeleting(true)
+    const { error } = await supabase.from('colegios').delete().eq('id', deleteRow.id)
+    setDeleting(false)
+    if (error) { showN(error.message, 'err'); return }
+    setDeleteRow(null)
+    showN('Registro eliminado')
+    reload()
+  }
+
+  return (
+    <div className="content">
+      {notif && <Notif msg={notif.msg} type={notif.type} onClose={() => setNotif(null)} />}
+      <div className="card">
+        <div className="card-h">
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span className="card-t">Colegios</span>
+            <span className="tag tag-n">{filtered.length}</span>
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <div className="srch-w">{IC.srch}<input className="srch" placeholder="Buscar..." value={q} onChange={e => setQ(e.target.value)} /></div>
+            <button className="btn-ic" onClick={reload} title="Recargar">{IC.ref}</button>
+            <button className="btn btn-s" onClick={() => exportarColegios(filtered)}>📊 Excel</button>
+            <button className="btn btn-p" onClick={() => setModal(true)}>{IC.plus}Nuevo Colegio</button>
+          </div>
+        </div>
+        <div className="tbl-wrap">
+          {loading
+            ? <div className="loader"><div className="ring" /> Cargando...</div>
+            : <table>
+                <thead><tr>{cols.map(c => <th key={c.key}>{c.label}</th>)}<th>Acciones</th></tr></thead>
+                <tbody>
+                  {filtered.length === 0
+                    ? <tr><td colSpan={cols.length+1} style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</td></tr>
+                    : filtered.map((row, i) => (
+                      <tr key={row.id||i}>
+                        {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
+                        <td>
+                          <div style={{ display:'flex', gap:4 }}>
+                            <button className="btn btn-s btn-sm" title="Fotos" onClick={() => setGaleriaRow(row)}>📷</button>
+                            <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
+                            <button className="btn btn-s btn-sm" title="Ver" onClick={() => setViewRow(row)}>👁️</button>
+                            <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => setDeleteRow(row)}>🗑️</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+          }
+        </div>
+      </div>
+
+      {modal && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setModal(false)}>
+          <div className="modal">
+            <FmColegio
+              onClose={() => setModal(false)}
+              onSave={msg => { setModal(false); showN(msg||'Guardado correctamente'); reload() }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+
+      {editRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setEditRow(null)}>
+          <div className="modal">
+            <FmColegio
+              initial={editRow}
+              onClose={() => setEditRow(null)}
+              onSave={msg => { setEditRow(null); showN(msg||'Actualizado correctamente'); reload() }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+
+      {viewRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setViewRow(null)}>
+          <div className="modal">
+            <div className="modal-t">👁️ Detalle del registro</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
+              {Object.entries(viewRow)
+                .filter(([k]) => !['id','created_at','updated_at'].includes(k))
+                .map(([k,v]) => (
+                  <div key={k} className="fg">
+                    <div className="fl">{k.replace(/_/g,' ').toUpperCase()}</div>
+                    <div style={{ fontSize:13, padding:'6px 0' }}>
+                      {v === null || v === undefined ? '—'
+                        : typeof v === 'boolean' ? (v ? 'Sí' : 'No')
+                        : typeof v === 'object' ? JSON.stringify(v)
+                        : String(v)}
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setViewRow(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setDeleteRow(null)}>
+          <div className="modal">
+            <div className="modal-t">🗑️ Eliminar</div>
+            <p>¿Eliminar "{deleteRow.nombre}"?</p>
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setDeleteRow(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{background:'var(--e)'}} onClick={doDelete} disabled={deleting}>{deleting ? 'Eliminando...' : 'Eliminar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {galeriaRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setGaleriaRow(null)}>
+          <div className="modal" style={{maxHeight:'90vh',overflow:'auto'}}>
+            <GaleriaFotos
+              tabla="fotos_colegios"
+              foreignKey="colegio_id"
+              foreignId={galeriaRow.id}
+              titulo={`Galería de ${galeriaRow.nombre}`}
+              placeholders={[
+                'Ej: Alumnos recibiendo los kits de seguridad vial',
+                'Ej: Aula durante la capacitación',
+                'Ej: Director firmando el convenio',
+                'Ej: Foto grupal con los bomberos',
+                'Ej: Entrega de materiales educativos'
+              ]}
+            />
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setGaleriaRow(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── VISITAS ──────────────────────────────────────────────────────────────────
