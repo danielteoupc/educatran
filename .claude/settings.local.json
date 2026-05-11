@@ -16,7 +16,9 @@
       "Bash(git pull *)",
       "Bash(Get-ChildItem -Path \"C:\\\\CVEDUCATRAN\\\\educatran\" -Recurse -Filter \"*estacion*\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object -First 20)",
-      "Bash(grep -n \"^\\\\`\" /c/CVEDUCATRAN/educatran/src/App.jsx)"
+      "Bash(grep -n \"^\\\\`\" /c/CVEDUCATRAN/educatran/src/App.jsx)",
+      "Bash(awk 'NR>=130 && NR<=135 {print}')",
+      "Bash(awk '/^function Estaciones/,/^function [A-Z]/ {print NR\": \"$0}' /c/CVEDUCATRAN/educatran/src/App.jsx)"
     ]
   }
 }

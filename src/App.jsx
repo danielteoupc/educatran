@@ -192,6 +192,23 @@ textarea{resize:vertical;min-height:72px}
 .st-location{color:var(--t3);font-size:11px;margin-bottom:8px}
 .st-divider{height:1px;background:var(--br);margin:8px -16px}
 @keyframes stFadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* GALERIA */
+.gal-upload{background:var(--bb);border:1px solid #BFDBFE;border-radius:var(--rad);padding:16px;margin-bottom:20px}
+.gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.gal-item{cursor:pointer;overflow:hidden;border-radius:var(--rads);border:1px solid var(--br);transition:transform .2s,box-shadow .2s}
+.gal-item:hover{transform:translateY(-4px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.gal-img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#f0f0f0}
+.gal-info{padding:8px;font-size:11px}
+.gal-desc{font-weight:500;color:var(--t1);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gal-date{color:var(--t3);font-size:10px}
+.gal-del{display:inline-block;margin-top:4px}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:1000}
+.lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;align-items:center}
+.lightbox-img{max-width:100%;max-height:80vh;object-fit:contain}
+.lightbox-desc{color:#fff;margin-top:16px;text-align:center;max-width:600px}
+.lightbox-close{position:absolute;top:20px;right:20px;width:40px;height:40px;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:24px;cursor:pointer;border-radius:50%;transition:background .2s}
+.lightbox-close:hover{background:rgba(255,255,255,.3)}
 `
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -1017,6 +1034,116 @@ function exportarEstaciones(rows) {
   exportXLSX(filas, 'Estaciones')
 }
 
+// ─── GALERIA DE FOTOS ─────────────────────────────────────────────────────────
+function Lightbox({ foto, onClose }) {
+  if (!foto) return null
+  return (
+    <div className="lightbox" onClick={onClose}>
+      <div className="lightbox-content" onClick={e => e.stopPropagation()}>
+        <button className="lightbox-close" onClick={onClose}>✕</button>
+        <img src={foto.url} alt="" className="lightbox-img" />
+        {foto.descripcion && <div className="lightbox-desc">{foto.descripcion}</div>}
+      </div>
+    </div>
+  )
+}
+
+function GaleriaFotos({ tabla, foreignKey, foreignId, titulo, extraInfo }) {
+  const [fotos, setFotos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [file, setFile] = useState(null)
+  const [descripcion, setDescripcion] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [lightboxFoto, setLightboxFoto] = useState(null)
+
+  useEffect(() => {
+    const cargarFotos = async () => {
+      const { data, error } = await supabase.from(tabla).select('*').eq(foreignKey, foreignId).order('fecha', { ascending: false })
+      if (!error) setFotos(data || [])
+      setLoading(false)
+    }
+    cargarFotos()
+  }, [tabla, foreignKey, foreignId])
+
+  const subir = async () => {
+    if (!file) { alert('Selecciona una imagen'); return }
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `${tabla === 'fotos_estaciones' ? 'estaciones' : 'visitas'}/${foreignId}/${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage.from('fotos-educatran').upload(path, file)
+      if (uploadErr) throw uploadErr
+      const { data: { publicUrl } } = supabase.storage.from('fotos-educatran').getPublicUrl(path)
+      const { error: insertErr } = await supabase.from(tabla).insert({
+        [foreignKey]: foreignId,
+        url: publicUrl,
+        descripcion: descripcion || null,
+        fecha: new Date().toISOString()
+      })
+      if (insertErr) throw insertErr
+      setFile(null)
+      setDescripcion('')
+      const { data } = await supabase.from(tabla).select('*').eq(foreignKey, foreignId).order('fecha', { ascending: false })
+      setFotos(data || [])
+    } catch (e) {
+      alert('Error: ' + e.message)
+    }
+    setUploading(false)
+  }
+
+  const eliminar = async (fotoId, url) => {
+    if (!confirm('¿Eliminar foto?')) return
+    try {
+      const path = url.split('/').pop()
+      await supabase.storage.from('fotos-educatran').remove([path])
+      await supabase.from(tabla).delete().eq('id', fotoId)
+      setFotos(fotos.filter(f => f.id !== fotoId))
+    } catch (e) {
+      alert('Error: ' + e.message)
+    }
+  }
+
+  return (
+    <>
+      <div className="modal-t">📷 {titulo}</div>
+      {extraInfo && <div style={{fontSize:12,color:'var(--t3)',marginBottom:16}}>{extraInfo}</div>}
+
+      <div className="gal-upload">
+        <div style={{marginBottom:12}}>
+          <label className="fl">Foto</label>
+          <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} disabled={uploading} />
+        </div>
+        <div style={{marginBottom:12}}>
+          <label className="fl">Descripción (opcional)</label>
+          <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Ej: Firma del convenio" disabled={uploading} />
+        </div>
+        <button className="btn btn-p" onClick={subir} disabled={uploading || !file}>{uploading ? 'Subiendo...' : 'Subir Foto'}</button>
+      </div>
+
+      {loading ? (
+        <div style={{textAlign:'center',padding:40,color:'var(--t3)'}}>Cargando fotos...</div>
+      ) : fotos.length === 0 ? (
+        <div style={{textAlign:'center',padding:40,color:'var(--t3)'}}>Sin fotos aún</div>
+      ) : (
+        <div className="gal-grid">
+          {fotos.map(foto => (
+            <div key={foto.id} className="gal-item">
+              <img src={foto.url} alt="" className="gal-img" onClick={() => setLightboxFoto(foto)} />
+              <div className="gal-info">
+                {foto.descripcion && <div className="gal-desc">{foto.descripcion}</div>}
+                <div className="gal-date">{new Date(foto.fecha).toLocaleDateString('es-PE')}</div>
+                <button className="btn btn-s btn-sm gal-del" onClick={() => eliminar(foto.id, foto.url)}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Lightbox foto={lightboxFoto} onClose={() => setLightboxFoto(null)} />
+    </>
+  )
+}
+
 function FmEstacion({ onClose, onSave, onError, initial }) {
   const [f, setF] = useState(initial ? { ...initial } : { nombre:'', codigo:'', departamento:'Lima', provincia:'Lima', distrito:'', direccion:'', telefono:'', email:'', comandante:'', num_voluntarios:0, logo_url:'', activa:true, notas:'' })
   const [saving, setSaving] = useState(false)
@@ -1135,6 +1262,7 @@ function Estaciones() {
   const [hoveredStation, setHoveredStation] = useState(null)
   const [hoverPos, setHoverPos] = useState({ top: 0 })
   const [modal, setModal] = useState(false)
+  const [galeriaRow, setGaleriaRow] = useState(null)
   const [editRow, setEditRow] = useState(null)
   const [viewRow, setViewRow] = useState(null)
   const [deleteRow, setDeleteRow] = useState(null)
@@ -1192,6 +1320,7 @@ function Estaciones() {
                         {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
                         <td>
                           <div style={{ display:'flex', gap:4 }}>
+                            <button className="btn btn-s btn-sm" title="Fotos" onClick={() => setGaleriaRow(row)}>📷</button>
                             <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
                             <button className="btn btn-s btn-sm" title="Ver" onClick={() => setViewRow(row)}>👁️</button>
                             <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => setDeleteRow(row)}>🗑️</button>
@@ -1267,6 +1396,22 @@ function Estaciones() {
             <div className="modal-f">
               <button className="btn btn-s" onClick={() => setDeleteRow(null)}>Cancelar</button>
               <button className="btn btn-p" style={{background:'var(--e)'}} onClick={doDelete} disabled={deleting}>{deleting ? 'Eliminando...' : 'Eliminar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {galeriaRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setGaleriaRow(null)}>
+          <div className="modal" style={{maxHeight:'90vh',overflow:'auto'}}>
+            <GaleriaFotos
+              tabla="fotos_estaciones"
+              foreignKey="estacion_id"
+              foreignId={galeriaRow.id}
+              titulo={`Galería de ${galeriaRow.nombre}`}
+            />
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setGaleriaRow(null)}>Cerrar</button>
             </div>
           </div>
         </div>
@@ -1471,6 +1616,16 @@ function FmVisita({ onClose, onSave, onError, initial }) {
 
 function Visitas() {
   const { data, loading, reload } = useTable('visitas_entregas','*, colegios(nombre), estaciones_bomberos(nombre), usuarios(nombre,apellido)')
+  const [modal, setModal] = useState(false)
+  const [galeriaRow, setGaleriaRow] = useState(null)
+  const [editRow, setEditRow] = useState(null)
+  const [viewRow, setViewRow] = useState(null)
+  const [deleteRow, setDeleteRow] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [notif, setNotif] = useState(null)
+  const showN = (msg, type = 'ok') => setNotif({ msg, type })
+  const [q, setQ] = useState('')
+
   const cols = [
     { key:'colegios', label:'Colegio', render:v => <strong>{v?.nombre||'—'}</strong> },
     { key:'estaciones_bomberos', label:'Estacion', render:v => v ? <span style={{ fontSize:12 }}>🚒 {v.nombre}</span> : '—' },
@@ -1480,7 +1635,149 @@ function Visitas() {
     { key:'num_alumnos_capacitados', label:'Alumnos', render:v => v>0 ? v : '—' },
     { key:'estado', label:'Estado', render:v => <Tag s={v} /> },
   ]
-  return <Page title="Visitas y Entregas de Kits" data={data} loading={loading} reload={reload} cols={cols} addLabel="Registrar Visita" Form={FmVisita} deleteTable="visitas_entregas" exportFn={exportarVisitas} filterFn={(r,q) => [r.colegios?.nombre,r.estaciones_bomberos?.nombre,r.estado].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))} />
+
+  const filtered = data.filter(row => {
+    if (!q) return true
+    return [row.colegios?.nombre,row.estaciones_bomberos?.nombre,row.estado].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))
+  })
+
+  const doDelete = async () => {
+    setDeleting(true)
+    const { error } = await supabase.from('visitas_entregas').delete().eq('id', deleteRow.id)
+    setDeleting(false)
+    if (error) { showN(error.message, 'err'); return }
+    setDeleteRow(null)
+    showN('Registro eliminado')
+    reload()
+  }
+
+  return (
+    <div className="content">
+      {notif && <Notif msg={notif.msg} type={notif.type} onClose={() => setNotif(null)} />}
+      <div className="card">
+        <div className="card-h">
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span className="card-t">Visitas y Entregas de Kits</span>
+            <span className="tag tag-n">{filtered.length}</span>
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <div className="srch-w">{IC.srch}<input className="srch" placeholder="Buscar..." value={q} onChange={e => setQ(e.target.value)} /></div>
+            <button className="btn-ic" onClick={reload} title="Recargar">{IC.ref}</button>
+            <button className="btn btn-s" onClick={() => exportarVisitas(filtered)}>📊 Excel</button>
+            <button className="btn btn-p" onClick={() => setModal(true)}>{IC.plus}Registrar Visita</button>
+          </div>
+        </div>
+        <div className="tbl-wrap">
+          {loading
+            ? <div className="loader"><div className="ring" /> Cargando...</div>
+            : <table>
+                <thead><tr>{cols.map(c => <th key={c.key}>{c.label}</th>)}<th>Acciones</th></tr></thead>
+                <tbody>
+                  {filtered.length === 0
+                    ? <tr><td colSpan={cols.length+1} style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</td></tr>
+                    : filtered.map((row, i) => (
+                      <tr key={row.id||i}>
+                        {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
+                        <td>
+                          <div style={{ display:'flex', gap:4 }}>
+                            <button className="btn btn-s btn-sm" title="Fotos" onClick={() => setGaleriaRow(row)}>📷</button>
+                            <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
+                            <button className="btn btn-s btn-sm" title="Ver" onClick={() => setViewRow(row)}>👁️</button>
+                            <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => setDeleteRow(row)}>🗑️</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+          }
+        </div>
+      </div>
+
+      {modal && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setModal(false)}>
+          <div className="modal">
+            <FmVisita
+              onClose={() => setModal(false)}
+              onSave={msg => { setModal(false); showN(msg||'Guardado correctamente'); reload() }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+
+      {editRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setEditRow(null)}>
+          <div className="modal">
+            <FmVisita
+              initial={editRow}
+              onClose={() => setEditRow(null)}
+              onSave={msg => { setEditRow(null); showN(msg||'Actualizado correctamente'); reload() }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+
+      {viewRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setViewRow(null)}>
+          <div className="modal">
+            <div className="modal-t">👁️ Detalle del registro</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
+              {Object.entries(viewRow)
+                .filter(([k]) => !['id','created_at','updated_at'].includes(k))
+                .map(([k,v]) => (
+                  <div key={k} className="fg">
+                    <div className="fl">{k.replace(/_/g,' ').toUpperCase()}</div>
+                    <div style={{ fontSize:13, padding:'6px 0' }}>
+                      {v === null || v === undefined ? '—'
+                        : typeof v === 'boolean' ? (v ? 'Sí' : 'No')
+                        : typeof v === 'object' ? JSON.stringify(v)
+                        : String(v)}
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setViewRow(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setDeleteRow(null)}>
+          <div className="modal">
+            <div className="modal-t">🗑️ Eliminar</div>
+            <p>¿Eliminar esta visita?</p>
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setDeleteRow(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{background:'var(--e)'}} onClick={doDelete} disabled={deleting}>{deleting ? 'Eliminando...' : 'Eliminar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {galeriaRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setGaleriaRow(null)}>
+          <div className="modal" style={{maxHeight:'90vh',overflow:'auto'}}>
+            <GaleriaFotos
+              tabla="fotos_visitas"
+              foreignKey="visita_id"
+              foreignId={galeriaRow.id}
+              titulo={`Galería de la Visita`}
+              extraInfo={`${galeriaRow.colegios?.nombre} • ${fmtDate(galeriaRow.fecha_visita)}`}
+            />
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setGaleriaRow(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── INVENTARIO KITS ──────────────────────────────────────────────────────────
