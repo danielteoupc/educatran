@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS estaciones_bomberos (
   email           VARCHAR(255),
   comandante      VARCHAR(150),
   num_voluntarios INTEGER DEFAULT 0,
+  logo_url        TEXT,
   activa          BOOLEAN DEFAULT TRUE,
   notas           TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),

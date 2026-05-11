@@ -13,7 +13,10 @@
       "Bash(git push *)",
       "Bash(git reset *)",
       "Bash(git ls-remote *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\CVEDUCATRAN\\\\educatran\" -Recurse -Filter \"*estacion*\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 20)",
+      "Bash(grep -n \"^\\\\`\" /c/CVEDUCATRAN/educatran/src/App.jsx)"
     ]
   }
 }

@@ -178,6 +178,16 @@ textarea{resize:vertical;min-height:72px}
 .ib-b{background:var(--bb);color:#1D4ED8;border:1px solid #BFDBFE}
 .ib-a{background:var(--ab);color:#92400E;border:1px solid #FDE68A}
 .ib-g{background:var(--gb);color:#065F46;border:1px solid #A7F3D0}
+
+/* HOVER TOOLTIP */
+.st-row{transition:background-color .2s ease}
+.st-row:hover{background-color:#F0F9FF}
+.st-tooltip{position:fixed;background:var(--w);border:1px solid var(--br);border-radius:var(--rad);padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.1);min-width:220px;z-index:100;animation:fadeIn .2s ease}
+.st-tooltip-img{width:80px;height:80px;object-fit:contain;margin-bottom:12px}
+.st-tooltip-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px}
+.st-tooltip-label{color:var(--t3);font-weight:600}
+.st-tooltip-value{color:var(--t1);font-weight:500}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 `
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -1004,9 +1014,27 @@ function exportarEstaciones(rows) {
 }
 
 function FmEstacion({ onClose, onSave, onError, initial }) {
-  const [f, setF] = useState(initial ? { ...initial } : { nombre:'', codigo:'', departamento:'Lima', provincia:'Lima', distrito:'', direccion:'', telefono:'', email:'', comandante:'', num_voluntarios:0, activa:true, notas:'' })
+  const [f, setF] = useState(initial ? { ...initial } : { nombre:'', codigo:'', departamento:'Lima', provincia:'Lima', distrito:'', direccion:'', telefono:'', email:'', comandante:'', num_voluntarios:0, logo_url:'', activa:true, notas:'' })
   const [saving, setSaving] = useState(false)
+  const [logoPreview, setLogoPreview] = useState(initial?.logo_url || null)
+  const [uploading, setUploading] = useState(false)
   const up = (k,v) => setF(p => ({...p,[k]:v}))
+  const handleLogoUpload = async (file) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const filename = `estacion-${Date.now()}.${ext}`
+      const { data, error } = await supabase.storage.from('logos-estaciones').upload(filename, file, { upsert: true })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('logos-estaciones').getPublicUrl(data.path)
+      up('logo_url', publicUrl)
+      setLogoPreview(publicUrl)
+    } catch (e) {
+      onError('Error al subir logo: ' + e.message)
+    }
+    setUploading(false)
+  }
   const save = async () => {
     if (!f.nombre) { onError('El nombre es obligatorio'); return }
     setSaving(true)
@@ -1021,6 +1049,7 @@ function FmEstacion({ onClose, onSave, onError, initial }) {
     <>
       <div className="modal-t">{initial?.id ? '✏️ Editar' : '🚒 Nueva'} Estacion</div>
       <div className="fgrid">
+        <div className="fg full"><label className="fl">Logo de la Estacion</label><input type="file" accept="image/*" onChange={e => handleLogoUpload(e.target.files?.[0])} disabled={uploading} />{logoPreview && <img src={logoPreview} style={{width:80, height:80, objectFit:'contain', marginTop:8}} />}</div>
         <div className="fg full"><label className="fl">Nombre de la Estacion *</label><input value={f.nombre} onChange={e => up('nombre',e.target.value)} placeholder="CIA. de Bomberos Lima N°1" /></div>
         <div className="fg"><label className="fl">Codigo</label><input value={f.codigo} onChange={e => up('codigo',e.target.value)} placeholder="CB-LIM-001" /></div>
         <div className="fg"><label className="fl">Comandante</label><input value={f.comandante} onChange={e => up('comandante',e.target.value)} placeholder="Cnel. Nombre Apellido" /></div>
@@ -1042,16 +1071,161 @@ function FmEstacion({ onClose, onSave, onError, initial }) {
   )
 }
 
+function EstacionesTooltip({ row, position }) {
+  if (!row) return null
+  return (
+    <div className="st-tooltip" style={{ left:position.x+'px', top:position.y+'px' }}>
+      {row.logo_url && <img src={row.logo_url} className="st-tooltip-img" alt="" />}
+      <div style={{ marginBottom:12 }}><strong>{row.nombre}</strong></div>
+      <div className="st-tooltip-row"><span className="st-tooltip-label">Código:</span><span className="st-tooltip-value">{row.codigo||'—'}</span></div>
+      <div className="st-tooltip-row"><span className="st-tooltip-label">Comandante:</span><span className="st-tooltip-value">{row.comandante||'—'}</span></div>
+      <div className="st-tooltip-row"><span className="st-tooltip-label">Voluntarios:</span><span className="st-tooltip-value">{row.num_voluntarios||0}</span></div>
+      <div className="st-tooltip-row"><span className="st-tooltip-label">Ubicación:</span><span className="st-tooltip-value">{row.distrito||'—'}, {row.departamento||'—'}</span></div>
+    </div>
+  )
+}
+
 function Estaciones() {
   const { data, loading, reload } = useTable('estaciones_bomberos')
+  const [hoverRow, setHoverRow] = useState(null)
+  const [tooltipPos, setTooltipPos] = useState({ x:0, y:0 })
+  const [modal, setModal] = useState(false)
+  const [editRow, setEditRow] = useState(null)
+  const [viewRow, setViewRow] = useState(null)
+  const [deleteRow, setDeleteRow] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [notif, setNotif] = useState(null)
+  const showN = (msg, type = 'ok') => setNotif({ msg, type })
   const cols = [
-    { key:'nombre', label:'Estacion', render:(v,r) => <><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div></> },
+    { key:'nombre', label:'Estacion', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:8}}>{r.logo_url ? <img src={r.logo_url} style={{width:32,height:32,objectFit:'contain'}} alt="" /> : <span>🚒</span>}<div><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div></div></div></> },
     { key:'departamento', label:'Ubicacion', render:(v,r) => `${r.distrito||'—'}, ${v}` },
     { key:'comandante', label:'Comandante' },
     { key:'num_voluntarios', label:'Voluntarios', render:v => <span className="tag tag-b">{v||0}</span> },
     { key:'activa', label:'Estado', render:v => <Tag s={v?'activa':'inactivo'} /> },
   ]
-  return <Page title="Estaciones de Bomberos" data={data} loading={loading} reload={reload} cols={cols} addLabel="Nueva Estacion" Form={FmEstacion} deleteTable="estaciones_bomberos" exportFn={exportarEstaciones} />
+  const handleRowHover = (row, e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setHoverRow(row)
+    setTooltipPos({ x:rect.right+10, y:rect.top })
+  }
+  const doDelete = async () => {
+    setDeleting(true)
+    const { error } = await supabase.from('estaciones_bomberos').delete().eq('id', deleteRow.id)
+    setDeleting(false)
+    if (error) { showN(error.message, 'err'); return }
+    setDeleteRow(null)
+    showN('Registro eliminado')
+    reload()
+  }
+  return (
+    <div className="content">
+      {notif && <Notif msg={notif.msg} type={notif.type} onClose={() => setNotif(null)} />}
+      <div className="card">
+        <div className="card-h">
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span className="card-t">Estaciones de Bomberos</span>
+            <span className="tag tag-n">{data.length}</span>
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button className="btn btn-s" onClick={reload} title="Recargar">{IC.ref}</button>
+            <button className="btn btn-s" onClick={() => exportarEstaciones(data)}>📊 Excel</button>
+            <button className="btn btn-p" onClick={() => setModal(true)}>{IC.plus}Nueva Estacion</button>
+          </div>
+        </div>
+        <div className="tbl-wrap">
+          {loading
+            ? <div className="loader"><div className="ring" /> Cargando...</div>
+            : <table>
+                <thead><tr>{cols.map(c => <th key={c.key}>{c.label}</th>)}<th>Acciones</th></tr></thead>
+                <tbody>
+                  {data.length === 0
+                    ? <tr><td colSpan={cols.length+1} style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</td></tr>
+                    : data.map((row, i) => (
+                      <tr key={row.id||i} className="st-row" onMouseEnter={e => handleRowHover(row, e)} onMouseLeave={() => setHoverRow(null)}>
+                        {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
+                        <td>
+                          <div style={{ display:'flex', gap:4 }}>
+                            <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
+                            <button className="btn btn-s btn-sm" title="Ver" onClick={() => setViewRow(row)}>👁️</button>
+                            <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => setDeleteRow(row)}>🗑️</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+          }
+        </div>
+        <EstacionesTooltip row={hoverRow} position={tooltipPos} />
+      </div>
+
+      {modal && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setModal(false)}>
+          <div className="modal">
+            <FmEstacion
+              onClose={() => setModal(false)}
+              onSave={msg => { setModal(false); showN(msg||'Guardado correctamente'); reload() }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+
+      {editRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setEditRow(null)}>
+          <div className="modal">
+            <FmEstacion
+              initial={editRow}
+              onClose={() => setEditRow(null)}
+              onSave={msg => { setEditRow(null); showN(msg||'Actualizado correctamente'); reload() }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+
+      {viewRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setViewRow(null)}>
+          <div className="modal">
+            <div className="modal-t">👁️ Detalle del registro</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
+              {Object.entries(viewRow)
+                .filter(([k]) => !['id','created_at','updated_at'].includes(k))
+                .map(([k,v]) => (
+                  <div key={k} className="fg">
+                    <div className="fl">{k.replace(/_/g,' ').toUpperCase()}</div>
+                    <div style={{ fontSize:13, padding:'6px 0' }}>
+                      {v === null || v === undefined ? '—'
+                        : typeof v === 'boolean' ? (v ? 'Sí' : 'No')
+                        : typeof v === 'object' ? JSON.stringify(v)
+                        : String(v)}
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setViewRow(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteRow && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setDeleteRow(null)}>
+          <div className="modal">
+            <div className="modal-t">🗑️ Eliminar</div>
+            <p>¿Eliminar "{deleteRow.nombre}"?</p>
+            <div className="modal-f">
+              <button className="btn btn-s" onClick={() => setDeleteRow(null)}>Cancelar</button>
+              <button className="btn btn-p" style={{background:'var(--e)'}} onClick={doDelete} disabled={deleting}>{deleting ? 'Eliminando...' : 'Eliminar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── COLEGIOS ─────────────────────────────────────────────────────────────────
