@@ -179,11 +179,19 @@ textarea{resize:vertical;min-height:72px}
 .ib-a{background:var(--ab);color:#92400E;border:1px solid #FDE68A}
 .ib-g{background:var(--gb);color:#065F46;border:1px solid #A7F3D0}
 
-/* ROW HOVER EXPANSION */
-tbody tr{transition:all .2s ease}
-tbody tr:hover{background:#FEF2F2}
-.st-extra{display:none;font-size:11px;color:var(--t3);gap:16px;padding-top:4px;align-items:center;flex-wrap:wrap}
-tbody tr:hover .st-extra{display:flex}
+/* STATION HOVER CARD */
+.st-card{position:fixed;left:220px;width:260px;background:var(--w);border:1px solid var(--br);border-radius:var(--radl);box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:999;animation:stFadeIn .15s ease}
+.st-card-logo{background:#FEF2F2;border-radius:var(--radl) var(--radl) 0 0;padding:20px;display:flex;align-items:center;justify-content:center;min-height:120px}
+.st-card-logo img{width:80px;height:80px;object-fit:contain}
+.st-card-logo-emoji{font-size:64px}
+.st-card-info{padding:16px}
+.st-info-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-start;font-size:12px}
+.st-info-row:last-child{margin-bottom:0}
+.st-info-label{color:var(--t1);flex:1}
+.st-name{font-weight:700;font-size:13px;margin-bottom:4px}
+.st-location{color:var(--t3);font-size:11px;margin-bottom:8px}
+.st-divider{height:1px;background:var(--br);margin:8px -16px}
+@keyframes stFadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 `
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -1077,8 +1085,55 @@ function FmEstacion({ onClose, onSave, onError, initial }) {
 }
 
 
+function StationHoverCard({ station, position }) {
+  if (!station) return null
+  return (
+    <div className="st-card" style={{ top: position.top + 'px' }}>
+      <div className="st-card-logo">
+        {station.logo_url
+          ? <img src={station.logo_url} alt={station.nombre} />
+          : <div className="st-card-logo-emoji">🚒</div>
+        }
+      </div>
+      <div className="st-card-info">
+        <div className="st-name">{station.nombre}</div>
+        <div className="st-location">{station.distrito||'—'}, {station.departamento||'—'}</div>
+        <div className="st-divider"></div>
+        <div className="st-info-row">
+          <span>👤</span>
+          <span className="st-info-label">{station.comandante||'Sin asignar'}</span>
+        </div>
+        <div className="st-info-row">
+          <span>👥</span>
+          <span className="st-info-label">{station.num_voluntarios||0} voluntarios</span>
+        </div>
+        {station.email && (
+          <div className="st-info-row">
+            <span>📧</span>
+            <span className="st-info-label">{station.email}</span>
+          </div>
+        )}
+        {station.telefono && (
+          <div className="st-info-row">
+            <span>📞</span>
+            <span className="st-info-label">{station.telefono}</span>
+          </div>
+        )}
+        {station.direccion && (
+          <div className="st-info-row">
+            <span>📍</span>
+            <span className="st-info-label">{station.direccion}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function Estaciones() {
   const { data, loading, reload } = useTable('estaciones_bomberos')
+  const [hoveredStation, setHoveredStation] = useState(null)
+  const [hoverPos, setHoverPos] = useState({ top: 0 })
   const [modal, setModal] = useState(false)
   const [editRow, setEditRow] = useState(null)
   const [viewRow, setViewRow] = useState(null)
@@ -1086,8 +1141,15 @@ function Estaciones() {
   const [deleting, setDeleting] = useState(false)
   const [notif, setNotif] = useState(null)
   const showN = (msg, type = 'ok') => setNotif({ msg, type })
+
+  const handleRowHover = (row, e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setHoveredStation(row)
+    setHoverPos({ top: rect.top })
+  }
+
   const cols = [
-    { key:'nombre', label:'Estacion', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:8}}>{r.logo_url ? <img src={r.logo_url} style={{width:48,height:48,objectFit:'contain'}} alt="" /> : <span style={{fontSize:32}}>🚒</span>}<div style={{flex:1}}><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div><div className="st-extra">{r.logo_url ? <img src={r.logo_url} style={{width:48,height:48,objectFit:'contain'}} alt="" /> : <span style={{fontSize:24}}>🚒</span>}<span>{r.email||'—'}</span>|<span>{r.telefono||'—'}</span>|<span>{r.direccion||'—'}</span></div></div></div></> },
+    { key:'nombre', label:'Estacion', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:16}}>🚒</span><div><strong>{v}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>Codigo: {r.codigo||'—'}</div></div></div></> },
     { key:'departamento', label:'Ubicacion', render:(v,r) => `${r.distrito||'—'}, ${v}` },
     { key:'comandante', label:'Comandante' },
     { key:'num_voluntarios', label:'Voluntarios', render:v => <span className="tag tag-b">{v||0}</span> },
@@ -1126,7 +1188,7 @@ function Estaciones() {
                   {data.length === 0
                     ? <tr><td colSpan={cols.length+1} style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</td></tr>
                     : data.map((row, i) => (
-                      <tr key={row.id||i}>
+                      <tr key={row.id||i} onMouseEnter={e => handleRowHover(row, e)} onMouseLeave={() => setHoveredStation(null)}>
                         {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
                         <td>
                           <div style={{ display:'flex', gap:4 }}>
@@ -1142,6 +1204,7 @@ function Estaciones() {
               </table>
           }
         </div>
+        <StationHoverCard station={hoveredStation} position={hoverPos} />
       </div>
 
       {modal && (
