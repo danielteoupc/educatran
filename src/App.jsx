@@ -195,15 +195,22 @@ textarea{resize:vertical;min-height:72px}
 
 /* GALERIA */
 .gal-upload{background:var(--bb);border:1px solid #BFDBFE;border-radius:var(--rad);padding:16px;margin-bottom:20px}
-.gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
-.gal-item{cursor:pointer;overflow:hidden;border-radius:var(--rads);border:1px solid var(--br);transition:transform .2s,box-shadow .2s}
-.gal-item:hover{transform:translateY(-4px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
-.gal-img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#f0f0f0}
-.gal-info{padding:8px;font-size:11px}
-.gal-desc{font-weight:500;color:var(--t1);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gal-date{color:var(--t3);font-size:10px}
-.gal-del{display:inline-block;margin-top:4px}
-.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:1000}
+.gal-upload-status{margin-top:12px;padding:8px;background:rgba(0,0,0,.05);border-radius:var(--rads);font-size:12px;color:var(--t2)}
+.gal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.gal-item{position:relative;cursor:pointer;overflow:hidden;border-radius:8px;transition:transform .2s,box-shadow .2s}
+.gal-item:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.gal-img-wrap{position:relative;overflow:hidden;border-radius:8px;background:#f0f0f0;height:160px}
+.gal-img{width:100%;height:100%;object-fit:cover;display:block}
+.gal-overlay{position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.gal-item:hover .gal-overlay{opacity:1}
+.gal-overlay-icon{font-size:32px}
+.gal-info{padding:8px 0;font-size:11px}
+.gal-desc{font-weight:600;color:var(--t1);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gal-date{color:var(--t3);font-size:10px;margin-bottom:4px}
+.gal-del{position:absolute;top:6px;right:6px;background:rgba(220,38,38,.9);border:none;color:#fff;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:none;align-items:center;justify-content:center;transition:background .2s;opacity:0}
+.gal-item:hover .gal-del{display:flex;opacity:1}
+.gal-del:hover{background:rgba(220,38,38,1)}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.95);display:flex;align-items:center;justify-content:center;z-index:1000}
 .lightbox-content{position:relative;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;align-items:center}
 .lightbox-img{max-width:100%;max-height:80vh;object-fit:contain}
 .lightbox-desc{color:#fff;margin-top:16px;text-align:center;max-width:600px}
@@ -1048,13 +1055,15 @@ function Lightbox({ foto, onClose }) {
   )
 }
 
-function GaleriaFotos({ tabla, foreignKey, foreignId, titulo, extraInfo }) {
+function GaleriaFotos({ tabla, foreignKey, foreignId, titulo, extraInfo, placeholders }) {
   const [fotos, setFotos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [file, setFile] = useState(null)
+  const [files, setFiles] = useState(null)
   const [descripcion, setDescripcion] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState('')
   const [lightboxFoto, setLightboxFoto] = useState(null)
+  const placeholderText = placeholders?.[Math.floor(Math.random() * placeholders.length)] || 'Ej: Descripción de la foto'
 
   useEffect(() => {
     const cargarFotos = async () => {
@@ -1065,28 +1074,35 @@ function GaleriaFotos({ tabla, foreignKey, foreignId, titulo, extraInfo }) {
     cargarFotos()
   }, [tabla, foreignKey, foreignId])
 
-  const subir = async () => {
-    if (!file) { alert('Selecciona una imagen'); return }
+  const subirMultiples = async () => {
+    if (!files || files.length === 0) { alert('Selecciona al menos una imagen'); return }
     setUploading(true)
+    setUploadStatus('')
     try {
-      const ext = file.name.split('.').pop()
-      const path = `${tabla === 'fotos_estaciones' ? 'estaciones' : 'visitas'}/${foreignId}/${Date.now()}.${ext}`
-      const { error: uploadErr } = await supabase.storage.from('fotos-educatran').upload(path, file)
-      if (uploadErr) throw uploadErr
-      const { data: { publicUrl } } = supabase.storage.from('fotos-educatran').getPublicUrl(path)
-      const { error: insertErr } = await supabase.from(tabla).insert({
-        [foreignKey]: foreignId,
-        url: publicUrl,
-        descripcion: descripcion || null,
-        fecha: new Date().toISOString()
+      const uploads = Array.from(files).map(async (file, idx) => {
+        setUploadStatus(`Subiendo ${idx + 1} de ${files.length} fotos...`)
+        const ext = file.name.split('.').pop()
+        const path = `${tabla === 'fotos_estaciones' ? 'estaciones' : 'visitas'}/${foreignId}/${Date.now()}-${idx}.${ext}`
+        const { error: uploadErr } = await supabase.storage.from('fotos-educatran').upload(path, file)
+        if (uploadErr) throw uploadErr
+        const { data: { publicUrl } } = supabase.storage.from('fotos-educatran').getPublicUrl(path)
+        const { error: insertErr } = await supabase.from(tabla).insert({
+          [foreignKey]: foreignId,
+          url: publicUrl,
+          descripcion: descripcion || null,
+          fecha: new Date().toISOString()
+        })
+        if (insertErr) throw insertErr
       })
-      if (insertErr) throw insertErr
-      setFile(null)
+      await Promise.all(uploads)
+      setFiles(null)
       setDescripcion('')
+      setUploadStatus('')
       const { data } = await supabase.from(tabla).select('*').eq(foreignKey, foreignId).order('fecha', { ascending: false })
       setFotos(data || [])
     } catch (e) {
       alert('Error: ' + e.message)
+      setUploadStatus('')
     }
     setUploading(false)
   }
@@ -1110,14 +1126,17 @@ function GaleriaFotos({ tabla, foreignKey, foreignId, titulo, extraInfo }) {
 
       <div className="gal-upload">
         <div style={{marginBottom:12}}>
-          <label className="fl">Foto</label>
-          <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} disabled={uploading} />
+          <label className="fl">Fotos (puedes seleccionar varias)</label>
+          <input type="file" accept="image/*" multiple onChange={e => setFiles(e.target.files)} disabled={uploading} />
         </div>
         <div style={{marginBottom:12}}>
-          <label className="fl">Descripción (opcional)</label>
-          <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Ej: Firma del convenio" disabled={uploading} />
+          <label className="fl">Descripción (opcional - se aplica a todas)</label>
+          <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder={placeholderText} disabled={uploading} />
         </div>
-        <button className="btn btn-p" onClick={subir} disabled={uploading || !file}>{uploading ? 'Subiendo...' : 'Subir Foto'}</button>
+        <button className="btn btn-p" onClick={subirMultiples} disabled={uploading || !files || files.length === 0}>
+          {uploading ? 'Subiendo...' : `Subir ${files?.length || 0} foto${files?.length !== 1 ? 's' : ''}`}
+        </button>
+        {uploadStatus && <div className="gal-upload-status">{uploadStatus}</div>}
       </div>
 
       {loading ? (
@@ -1128,11 +1147,16 @@ function GaleriaFotos({ tabla, foreignKey, foreignId, titulo, extraInfo }) {
         <div className="gal-grid">
           {fotos.map(foto => (
             <div key={foto.id} className="gal-item">
-              <img src={foto.url} alt="" className="gal-img" onClick={() => setLightboxFoto(foto)} />
+              <div className="gal-img-wrap">
+                <img src={foto.url} alt="" className="gal-img" onClick={() => setLightboxFoto(foto)} />
+                <div className="gal-overlay" onClick={() => setLightboxFoto(foto)}>
+                  <div className="gal-overlay-icon">🔍</div>
+                </div>
+              </div>
+              <button className="gal-del" onClick={() => eliminar(foto.id, foto.url)}>🗑️</button>
               <div className="gal-info">
                 {foto.descripcion && <div className="gal-desc">{foto.descripcion}</div>}
                 <div className="gal-date">{new Date(foto.fecha).toLocaleDateString('es-PE')}</div>
-                <button className="btn btn-s btn-sm gal-del" onClick={() => eliminar(foto.id, foto.url)}>🗑️</button>
               </div>
             </div>
           ))}
@@ -1409,6 +1433,12 @@ function Estaciones() {
               foreignKey="estacion_id"
               foreignId={galeriaRow.id}
               titulo={`Galería de ${galeriaRow.nombre}`}
+              placeholders={[
+                'Ej: Firma del convenio con EDUCATRAN',
+                'Ej: Entrega de equipos a la estación',
+                'Ej: Personal de la estación recibiendo kits',
+                'Ej: Reunión de coordinación con bomberos'
+              ]}
             />
             <div className="modal-f">
               <button className="btn btn-s" onClick={() => setGaleriaRow(null)}>Cerrar</button>
@@ -1769,6 +1799,14 @@ function Visitas() {
               foreignId={galeriaRow.id}
               titulo={`Galería de la Visita`}
               extraInfo={`${galeriaRow.colegios?.nombre} • ${fmtDate(galeriaRow.fecha_visita)}`}
+              placeholders={[
+                'Ej: Entrega de kits de seguridad vial',
+                'Ej: Alumnos recibiendo los kits',
+                'Ej: Capacitación sobre señales de tránsito',
+                'Ej: Bomberos con estudiantes del colegio',
+                'Ej: Demostración de cruce peatonal seguro',
+                'Ej: Foto grupal al finalizar la visita'
+              ]}
             />
             <div className="modal-f">
               <button className="btn btn-s" onClick={() => setGaleriaRow(null)}>Cerrar</button>
