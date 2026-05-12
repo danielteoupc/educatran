@@ -1017,7 +1017,24 @@ function FmPatrocinador({ onClose, onSave, onError, initial }) {
   const [f, setF] = useState(initial ? { ...initial } : { razon_social:'', nombre_comercial:'', ruc:'', pais:'Peru', ciudad:'Lima', direccion:'', email_contacto:'', telefono_contacto:'', nombre_contacto:'', sector:'Automotriz', logo_url:'', activo:true, notas:'' })
   const [saving, setSaving] = useState(false)
   const [logoPreview, setLogoPreview] = useState(initial?.logo_url || null)
-  const up = (k,v) => setF(p => ({...p,[k]:v}))
+  const [duplicateWarning, setDuplicateWarning] = useState(null)
+  const up = (k,v) => {
+    setF(p => ({...p,[k]:v}))
+    if (k === 'razon_social') checkDuplicate(v)
+  }
+  const checkDuplicate = async (razonSocial) => {
+    if (!razonSocial || razonSocial.length < 3) { setDuplicateWarning(null); return }
+    const { data } = await supabase
+      .from('patrocinadores')
+      .select('id, nombre_comercial')
+      .ilike('razon_social', razonSocial)
+      .limit(1)
+    if (data?.length > 0 && data[0].id !== initial?.id) {
+      setDuplicateWarning(`⚠️ Ya existe: ${data[0].nombre_comercial}`)
+    } else {
+      setDuplicateWarning(null)
+    }
+  }
   const handleLogoUpload = async (file) => {
     if (!file) return null
     const ext = file.name.split('.').pop()
@@ -1055,7 +1072,7 @@ function FmPatrocinador({ onClose, onSave, onError, initial }) {
       <div className="modal-t">{initial?.id ? '✏️ Editar' : '🏢 Nuevo'} Patrocinador</div>
       <div className="fgrid">
         <div className="fg full"><label className="fl">Logo</label><input type="file" accept="image/*" onChange={e => handleLogoUpload(e.target.files?.[0])} />{logoPreview && <img src={logoPreview} style={{width:60, height:60, objectFit:'contain', marginTop:8}} />}</div>
-        <div className="fg"><label className="fl">Razon Social *</label><input value={f.razon_social} onChange={e => up('razon_social',e.target.value)} placeholder="Empresa S.A." /></div>
+        <div className="fg"><label className="fl">Razon Social *</label><input value={f.razon_social} onChange={e => up('razon_social',e.target.value)} placeholder="Empresa S.A." />{duplicateWarning && <div style={{fontSize:12,color:'#D97706',marginTop:6,padding:'6px 10px',background:'#FFFBEB',borderRadius:4,border:'1px solid #FCD34D'}}>{duplicateWarning}</div>}</div>
         <div className="fg"><label className="fl">Nombre Comercial / Marca</label><input value={f.nombre_comercial} onChange={e => up('nombre_comercial',e.target.value)} placeholder="Toyota Peru" /></div>
         <div className="fg"><label className="fl">RUC / Tax ID</label><input value={f.ruc} onChange={e => up('ruc',e.target.value)} placeholder="20100000000" /></div>
         <div className="fg"><label className="fl">Sector</label>
