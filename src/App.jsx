@@ -646,10 +646,9 @@ function Dashboard({ onNavigate }) {
 
   useEffect(() => {
     async function load() {
-      const [rD, rG, rP, rC, rE, rV, rInv] = await Promise.all([
+      const [rD, rG, rC, rE, rV, rInv] = await Promise.all([
         supabase.from('donaciones').select('monto,comision_gestor,comision_pagada,estado,fecha_donacion,patrocinadores(nombre_comercial),gestores(nombre,apellido)').order('created_at',{ascending:false}),
         supabase.from('gastos').select('monto,estado'),
-        supabase.from('patrocinadores').select('nombre_comercial,total_donado').order('total_donado',{ascending:false}).limit(6),
         supabase.from('colegios').select('id',{count:'exact',head:true}),
         supabase.from('estaciones_bomberos').select('id',{count:'exact',head:true}),
         supabase.from('visitas_entregas').select('id,estado,fecha_visita,cantidad_kits_entregados,colegios(nombre),estaciones_bomberos(nombre)').order('fecha_visita',{ascending:false}).limit(4),
@@ -663,7 +662,29 @@ function Dashboard({ onNavigate }) {
       const kitsPorEntregar = (rV.data||[]).filter(v => v.estado==='programada').reduce((a,v) => a+(v.cantidad_kits_entregados||0),0)
       setS({ donaciones:totDon, saldo:totDon-totGas, gastos:totGas, comisiones:totCom, kitsEntregados, kitsPorEntregar, nDon:(rD.data||[]).length, nVis:(rV.data||[]).length, nCol:rC.count||0, nEst:rE.count||0 })
       setDons((rD.data||[]).slice(0,5))
-      setPats(rP.data||[])
+
+      // Calculate top sponsors from donations with real totals
+      const { data: allDons } = await supabase
+        .from('donaciones')
+        .select('monto, estado, patrocinador_id, patrocinadores(id, nombre_comercial, logo_url)')
+      const patMap = {}
+      allDons?.forEach(d => {
+        const p = d.patrocinadores
+        if (!p) return
+        if (!patMap[p.id]) patMap[p.id] = {
+          id: p.id,
+          nombre_comercial: p.nombre_comercial,
+          logo_url: p.logo_url,
+          total: 0
+        }
+        patMap[p.id].total += (d.monto || 0)
+      })
+      const pats = Object.values(patMap)
+        .filter(p => p.total > 0)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 6)
+      setPats(pats)
+
       setVis(rV.data||[])
       setReady(true)
     }
@@ -735,10 +756,10 @@ function Dashboard({ onNavigate }) {
 
   if (!ready) return <div className="content"><div className="loader"><div className="ring" /> Cargando dashboard...</div></div>
 
-  const maxD = Math.max(...pats.map(p => p.total_donado||0), 1)
+  const maxD = Math.max(...pats.map(p => p.total||0), 1)
 
   const statCards = [
-    { l:'Total Donaciones',  v:fmt(s.donaciones), sub:`${s.nDon} registradas`,      ico:'💰', bg:'#FEF2F2', page:'donaciones' },
+    { l:'Total Patrocinios',  v:fmt(s.donaciones), sub:`${s.nDon} registrados`,      ico:'💰', bg:'#FEF2F2', page:'donaciones' },
     { l:'Saldo Disponible',  v:fmt(s.saldo),      sub:'Fondos activos',              ico:'💳', bg:'#ECFDF5', vc:'#059669', page:'donaciones' },
     { l:'Total Gastos',      v:fmt(s.gastos),     sub:'Kits + equipos + operativos', ico:'📦', bg:'#EFF6FF', vc:'#2563EB', page:'gastos' },
     { l:'Comisiones Gestores',v:fmt(s.comisiones),sub:'Comisiones pagadas',         ico:'🤝', bg:'#FFFBEB', vc:'#D97706', page:'comisiones' },
@@ -779,7 +800,7 @@ function Dashboard({ onNavigate }) {
 
       <div className="g2 mt22">
         <div className="card">
-          <div className="card-h"><span className="card-t">Ultimas Donaciones</span><span className="tag tag-b">{s.nDon}</span></div>
+          <div className="card-h"><span className="card-t">Ultimos Patrocinios</span><span className="tag tag-b">{s.nDon}</span></div>
           <div className="tbl-wrap">
             <table>
               <thead><tr><th>Patrocinador</th><th>Monto</th><th>Estado</th></tr></thead>
@@ -805,10 +826,10 @@ function Dashboard({ onNavigate }) {
             ? <div style={{ color:'var(--t3)', textAlign:'center', padding:20 }}>Sin patrocinadores</div>
             : <div className="bars">
                 {pats.map(p => (
-                  <div key={p.nombre_comercial} className="bar-r">
-                    <span className="bar-l">{p.nombre_comercial}</span>
-                    <div className="bar-t"><div className="bar-f" style={{ width:`${((p.total_donado||0)/maxD)*100}%` }} /></div>
-                    <span className="bar-v">{fmt(p.total_donado)}</span>
+                  <div key={p.id} className="bar-r">
+                    <span className="bar-l">{p.logo_url && <img src={p.logo_url} style={{width:18,height:18,objectFit:'contain',marginRight:6,verticalAlign:'middle'}} alt="" />}{p.nombre_comercial}</span>
+                    <div className="bar-t"><div className="bar-f" style={{ width:`${((p.total||0)/maxD)*100}%` }} /></div>
+                    <span className="bar-v">{fmt(p.total)}</span>
                   </div>
                 ))}
               </div>
