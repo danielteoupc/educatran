@@ -474,6 +474,21 @@ function Page({ title, data, loading, cols, addLabel, Form, reload, filterFn, he
 
   const doDelete = async () => {
     setDeleting(true)
+
+    // Check for patrocinadores with donaciones
+    if (deleteTable === 'patrocinadores') {
+      const { count } = await supabase
+        .from('donaciones')
+        .select('id', { count: 'exact', head: true })
+        .eq('patrocinador_id', deleteRow.id)
+
+      if (count > 0) {
+        setDeleting(false)
+        showN(`No se puede eliminar este patrocinador porque tiene ${count} donación(es) registrada(s). Primero elimine las donaciones asociadas.`, 'err')
+        return
+      }
+    }
+
     const { error } = await supabase.from(deleteTable).delete().eq('id', deleteRow.id)
     setDeleting(false)
     if (error) { showN(error.message, 'err'); return }
@@ -2384,22 +2399,21 @@ function FmContrato({ onClose, onSave, onError, initial }) {
 }
 
 function Contratos() {
-  const { data, loading, reload } = useTable('contratos','*, patrocinadores(nombre_comercial), gestores(nombre,apellido)')
+  const { data, loading, reload } = useTable('contratos','*, patrocinadores(nombre_comercial,logo_url), gestores(nombre,apellido)')
   const cols = [
     { key:'numero_contrato', label:'N° Contrato', render:v => <code style={{ background:'var(--bg)',padding:'2px 7px',borderRadius:4,fontSize:11 }}>{v||'—'}</code> },
     { key:'titulo', label:'Titulo' },
     { key:'tipo', label:'Tipo', render:v => <span className="tag tag-n">{v}</span> },
-    { key:'patrocinadores', label:'Patrocinador', render:v => v?.nombre_comercial||'—' },
+    { key:'patrocinadores', label:'Patrocinador', render:(v,r) => <div style={{display:'flex',alignItems:'center',gap:8}}>{v?.logo_url ? <img src={v.logo_url} style={{width:32,height:32,objectFit:'contain',borderRadius:4,border:'1px solid #E8EAF0'}} alt="" /> : <span style={{marginRight:0}}>🏢</span>}<span>{v?.nombre_comercial||'—'}</span></div> },
     { key:'monto_comprometido', label:'Monto', render:(v,r) => v ? <span className="amt">{fmt(v,r.moneda)}</span> : '—' },
     { key:'fecha_fin', label:'Vence', render:v => fmtDate(v) },
     { key:'estado', label:'Estado', render:(v,r) => <div style={{display:'flex',gap:6,alignItems:'center'}}><Tag s={v} />{r.pdf_firmado_url && <span className="tag tag-g">✅ Firmado</span>}{!r.pdf_firmado_url && <span className="tag tag-a">⚠️ Sin firmar</span>}</div> },
-    { key:'id', label:'Acciones', render:(v,r) => (
-      <div style={{ display:'flex', gap:4, fontSize:11, flexWrap:'wrap' }}>
-        <button onClick={() => generarPDFContrato(v, false)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#3B82F6' }} title="Ver PDF">📄</button>
-        <button onClick={() => generarPDFContrato(v, true)} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#059669' }} title="Descargar PDF">⬇️</button>
-        <label style={{cursor:'pointer', color:'#2563EB', textDecoration:'underline'}} title="Subir PDF firmado">📎 <input type="file" accept=".pdf" onChange={e => subirPDFFirmado(v, e.target.files?.[0])} style={{display:'none'}} /></label>
-        {r.pdf_firmado_url && <button onClick={() => window.open(r.pdf_firmado_url, '_blank')} style={{ background:'none', border:'none', cursor:'pointer', padding:0, color:'#7C3AED' }} title="Ver PDF firmado">👁️</button>}
-        {r.pdf_firmado_url && <a href={r.pdf_firmado_url} download={`Contrato_${r.numero_contrato}_firmado.pdf`} style={{textDecoration:'none', color:'#059669'}} title="Descargar PDF firmado">📥</a>}
+    { key:'id', label:'Documento', render:(v,r) => (
+      <div style={{ display:'flex', gap:6, fontSize:11, flexWrap:'wrap' }}>
+        <button onClick={() => generarPDFContrato(v, false)} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',background:'#EFF6FF',color:'#2563EB',border:'1px solid #BFDBFE',borderRadius:6,fontSize:11,fontWeight:600,cursor:'pointer'}}>📄 Generar</button>
+        <label style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',background:'#F0FDF4',color:'#059669',border:'1px solid #A7F3D0',borderRadius:6,fontSize:11,fontWeight:600,cursor:'pointer'}} title="Subir PDF firmado">📎 Subir <input type="file" accept=".pdf" onChange={e => subirPDFFirmado(v, e.target.files?.[0])} style={{display:'none'}} /></label>
+        {r.pdf_firmado_url && <button onClick={() => window.open(r.pdf_firmado_url, '_blank')} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',background:'#F5F3FF',color:'#7C3AED',border:'1px solid #DDD6FE',borderRadius:6,fontSize:11,fontWeight:600,cursor:'pointer'}}>👁️ Ver</button>}
+        {r.pdf_firmado_url && <a href={r.pdf_firmado_url} download={`Contrato_${r.numero_contrato}_firmado.pdf`} style={{display:'flex',alignItems:'center',gap:4,padding:'5px 10px',background:'#FFF7ED',color:'#C2410C',border:'1px solid #FED7AA',borderRadius:6,fontSize:11,fontWeight:600,cursor:'pointer',textDecoration:'none'}}>⬇️ PDF</a>}
       </div>
     ) },
   ]
