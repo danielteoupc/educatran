@@ -866,6 +866,20 @@ function FmDonacion({ onClose, onSave, onError, initial }) {
       : await supabase.from('donaciones').insert(payload)
     setSaving(false)
     if (error) { onError(error.message); return }
+
+    // Auto-update total_donado when donation status changes
+    if (f.estado === 'recibida' || (initial?.estado !== 'recibida' && f.estado === 'recibida')) {
+      const { data: todasDon } = await supabase
+        .from('donaciones')
+        .select('monto')
+        .eq('patrocinador_id', f.patrocinador_id)
+        .eq('estado', 'recibida')
+      const nuevoTotal = todasDon?.reduce((s, d) => s + (d.monto || 0), 0) || 0
+      await supabase.from('patrocinadores')
+        .update({ total_donado: nuevoTotal })
+        .eq('id', f.patrocinador_id)
+    }
+
     onSave(initial?.id ? 'Donacion actualizada correctamente' : 'Donacion registrada. Comision al 5% calculada automaticamente.')
   }
   return (
@@ -1059,6 +1073,20 @@ function FmPatrocinador({ onClose, onSave, onError, initial }) {
   }
   const save = async () => {
     if (!f.razon_social) { onError('Razon social es obligatoria'); return }
+
+    if (!initial?.id) {
+      const { data: exists } = await supabase
+        .from('patrocinadores')
+        .select('id, nombre_comercial')
+        .ilike('razon_social', f.razon_social.trim())
+        .limit(1)
+
+      if (exists?.length > 0) {
+        onError(`Ya existe un patrocinador con esta razón social: ${exists[0].nombre_comercial}`)
+        return
+      }
+    }
+
     setSaving(true)
     const { error } = initial?.id
       ? await supabase.from('patrocinadores').update(f).eq('id', initial.id)
@@ -1097,6 +1125,29 @@ function FmPatrocinador({ onClose, onSave, onError, initial }) {
 
 function Patrocinadores() {
   const { data, loading, reload } = useTable('patrocinadores')
+  useEffect(() => {
+    ensureHyundaiExists()
+  }, [])
+  const ensureHyundaiExists = async () => {
+    const { data: hyundai } = await supabase
+      .from('patrocinadores')
+      .select('id')
+      .ilike('razon_social', 'Hyundai%')
+      .limit(1)
+    if (!hyundai || hyundai.length === 0) {
+      await supabase.from('patrocinadores').insert({
+        razon_social: 'Hyundai Perú S.A.C.',
+        nombre_comercial: 'Hyundai Perú',
+        ruc: '20605485000',
+        pais: 'Peru',
+        ciudad: 'Lima',
+        sector: 'Automotriz',
+        activo: true,
+        total_donado: 0
+      })
+      reload()
+    }
+  }
   const cols = [
     { key:'nombre_comercial', label:'Marca / Empresa', render:(v,r) => <><div style={{display:'flex',alignItems:'center',gap:10}}>{r.logo_url ? <img src={r.logo_url} style={{width:36,height:36,objectFit:'contain',borderRadius:6,border:'1px solid #E8EAF0'}} alt="" /> : <div style={{width:36,height:36,background:'#F3F4F6',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>🏢</div>}<div><strong>{v||r.razon_social}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>{r.razon_social}</div></div></div></> },
     { key:'pais', label:'Pais' },
