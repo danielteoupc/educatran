@@ -472,23 +472,47 @@ function Page({ title, data, loading, cols, addLabel, Form, reload, filterFn, he
     return cols.some(c => { const v = row[c.key]; return v && String(v).toLowerCase().includes(q.toLowerCase()) })
   })
 
+  const checkDependencies = async (id) => {
+    if (deleteTable === 'patrocinadores') {
+      const { count: donCount } = await supabase.from('donaciones').select('id', { count:'exact', head:true }).eq('patrocinador_id', id)
+      const { count: contCount } = await supabase.from('contratos').select('id', { count:'exact', head:true }).eq('patrocinador_id', id)
+      const total = (donCount || 0) + (contCount || 0)
+      if (total > 0) return { ok:false, msg:`❌ No se puede eliminar: tiene ${donCount||0} donación(es) y ${contCount||0} contrato(s) vinculados. Elimine primero esos registros.` }
+    }
+    else if (deleteTable === 'gestores') {
+      const { count: donCount } = await supabase.from('donaciones').select('id', { count:'exact', head:true }).eq('gestor_id', id)
+      const { count: comCount } = await supabase.from('comisiones').select('id', { count:'exact', head:true }).eq('gestor_id', id)
+      const total = (donCount || 0) + (comCount || 0)
+      if (total > 0) return { ok:false, msg:`❌ No se puede eliminar: tiene ${donCount||0} donación(es) y ${comCount||0} comisión(es) vinculadas. Elimine primero esos registros.` }
+    }
+    else if (deleteTable === 'estaciones_bomberos') {
+      const { count: colCount } = await supabase.from('colegios').select('id', { count:'exact', head:true }).eq('estacion_id', id)
+      const { count: visCount } = await supabase.from('visitas_entregas').select('id', { count:'exact', head:true }).eq('estacion_id', id)
+      const total = (colCount || 0) + (visCount || 0)
+      if (total > 0) return { ok:false, msg:`❌ No se puede eliminar: tiene ${colCount||0} colegio(s) y ${visCount||0} visita(s) vinculadas. Elimine primero esos registros.` }
+    }
+    else if (deleteTable === 'colegios') {
+      const { count } = await supabase.from('visitas_entregas').select('id', { count:'exact', head:true }).eq('colegio_id', id)
+      if (count > 0) return { ok:false, msg:`❌ No se puede eliminar: tiene ${count} visita(s) vinculada(s). Elimine primero esos registros.` }
+    }
+    else if (deleteTable === 'contratos') {
+      const { count } = await supabase.from('donaciones').select('id', { count:'exact', head:true }).eq('contrato_id', id)
+      if (count > 0) return { ok:false, msg:`❌ No se puede eliminar: tiene ${count} donación(es) vinculada(s). Elimine primero esos registros.` }
+    }
+    return { ok:true }
+  }
+
+  const handleDeleteClick = async (row) => {
+    const check = await checkDependencies(row.id)
+    if (!check.ok) {
+      showN(check.msg, 'err')
+      return
+    }
+    setDeleteRow(row)
+  }
+
   const doDelete = async () => {
     setDeleting(true)
-
-    // Check for patrocinadores with donaciones
-    if (deleteTable === 'patrocinadores') {
-      const { count } = await supabase
-        .from('donaciones')
-        .select('id', { count: 'exact', head: true })
-        .eq('patrocinador_id', deleteRow.id)
-
-      if (count > 0) {
-        setDeleting(false)
-        showN(`No se puede eliminar este patrocinador porque tiene ${count} donación(es) registrada(s). Primero elimine las donaciones asociadas.`, 'err')
-        return
-      }
-    }
-
     const { error } = await supabase.from(deleteTable).delete().eq('id', deleteRow.id)
     setDeleting(false)
     if (error) { showN(error.message, 'err'); return }
@@ -529,7 +553,7 @@ function Page({ title, data, loading, cols, addLabel, Form, reload, filterFn, he
                           <div style={{ display:'flex', gap:4 }}>
                             {Form && <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>}
                             <button className="btn btn-s btn-sm" title="Ver" onClick={() => setViewRow(row)}>👁️</button>
-                            {deleteTable && <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => setDeleteRow(row)}>🗑️</button>}
+                            {deleteTable && <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => handleDeleteClick(row)}>🗑️</button>}
                           </div>
                         </td>
                       </tr>
@@ -595,13 +619,14 @@ function Page({ title, data, loading, cols, addLabel, Form, reload, filterFn, he
 
       {deleteRow && (
         <div className="overlay">
-          <div className="modal" style={{ maxWidth:420 }}>
-            <div className="modal-t" style={{ color:'var(--e)' }}>🗑️ Confirmar eliminación</div>
-            <p style={{ color:'var(--t2)', fontSize:13 }}>¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.</p>
-            <div className="modal-f">
-              <button className="btn btn-s" disabled={deleting} onClick={() => setDeleteRow(null)}>Cancelar</button>
-              <button className="btn btn-p" style={{ background:'var(--e)' }} disabled={deleting} onClick={doDelete}>
-                {deleting ? <><span className="spin"/>Eliminando...</> : 'Sí, eliminar'}
+          <div style={{background:'white',borderRadius:14,padding:32,maxWidth:420,boxShadow:'0 20px 60px rgba(0,0,0,0.15)',textAlign:'center'}}>
+            <div style={{width:60,height:60,background:'#FEF2F2',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:28}}>🗑️</div>
+            <h3 style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:18,fontWeight:700,marginBottom:8,color:'#0D1117'}}>Eliminar registro</h3>
+            <p style={{color:'#6B7280',fontSize:13,lineHeight:1.6,marginBottom:24}}>¿Estás seguro de que deseas eliminar este registro?<br/><strong style={{color:'#DC2626'}}>Esta acción no se puede deshacer.</strong></p>
+            <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+              <button className="btn btn-s" disabled={deleting} onClick={() => setDeleteRow(null)} style={{minWidth:100}}>Cancelar</button>
+              <button className="btn btn-p" disabled={deleting} onClick={doDelete} style={{minWidth:100,background:'#DC2626'}}>
+                {deleting ? <><span className="spin"/>Eliminando...</> : '🗑️ Sí, eliminar'}
               </button>
             </div>
           </div>
