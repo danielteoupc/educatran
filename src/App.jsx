@@ -870,18 +870,53 @@ function exportarDonaciones(rows) {
 }
 
 function FmDonacion({ onClose, onSave, onError, initial }) {
-  const [f, setF] = useState(initial ? { ...initial } : { patrocinador_id:'', gestor_id:'', monto:'', moneda:'PEN', fecha_donacion:'', metodo_pago:'Transferencia Bancaria', referencia_pago:'', estado:'pendiente', descripcion:'' })
+  const [f, setF] = useState(initial ? { ...initial } : { patrocinador_id:'', gestor_id:'', monto:'', moneda:'PEN', fecha_donacion:'', metodo_pago:'Transferencia Bancaria', referencia_pago:'', estado:'pendiente', descripcion:'', contrato_id:'' })
   const [pats, setPats] = useState([]); const [gests, setGests] = useState([]); const [saving, setSaving] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [contratosEncontrados, setContratosEncontrados] = useState([])
+  const [contratoSeleccionado, setContratoSeleccionado] = useState(null)
   useEffect(() => {
     supabase.from('patrocinadores').select('id,nombre_comercial').eq('activo',true).then(({data}) => setPats(data||[]))
     supabase.from('gestores').select('id,nombre,apellido').eq('activo',true).then(({data}) => setGests(data||[]))
   }, [])
   const up = (k,v) => setF(p => ({...p,[k]:v}))
   const comision = f.monto ? (parseFloat(f.monto)*0.05).toFixed(2) : '0.00'
+  const montoNumerico = parseFloat(f.monto) || 0
+  const montoContrato = contratoSeleccionado?.monto_comprometido || 0
+  const esMontoMenor = montoNumerico > 0 && montoNumerico < montoContrato
+
+  const buscarContrato = async () => {
+    if (!busqueda.trim()) return
+    const { data } = await supabase
+      .from('contratos')
+      .select('*, patrocinadores(id, nombre_comercial, logo_url), gestores(id, nombre, apellido)')
+      .or(`numero_contrato.ilike.%${busqueda}%,titulo.ilike.%${busqueda}%`)
+      .eq('estado', 'activo')
+      .limit(5)
+    setContratosEncontrados(data || [])
+  }
+
+  const seleccionarContrato = (contrato) => {
+    setContratoSeleccionado(contrato)
+    setContratosEncontrados([])
+    setBusqueda('')
+    setF(prev => ({
+      ...prev,
+      patrocinador_id: contrato.patrocinador_id || '',
+      gestor_id: contrato.gestor_id || '',
+      monto: contrato.monto_comprometido?.toString() || '',
+      moneda: contrato.moneda || 'PEN',
+      contrato_id: contrato.id,
+      descripcion: `Pago según contrato ${contrato.numero_contrato} - ${contrato.titulo}`,
+      estado: 'recibida',
+      fecha_donacion: new Date().toISOString().split('T')[0]
+    }))
+  }
+
   const save = async () => {
     if (!f.patrocinador_id||!f.gestor_id||!f.monto||!f.fecha_donacion) { onError('Patrocinador, gestor, monto y fecha son obligatorios'); return }
     setSaving(true)
-    const payload = { patrocinador_id:f.patrocinador_id, gestor_id:f.gestor_id, monto:parseFloat(f.monto), moneda:f.moneda, fecha_donacion:f.fecha_donacion, metodo_pago:f.metodo_pago, referencia_pago:f.referencia_pago, estado:f.estado, descripcion:f.descripcion, comision_gestor:parseFloat(comision) }
+    const payload = { patrocinador_id:f.patrocinador_id, gestor_id:f.gestor_id, monto:parseFloat(f.monto), moneda:f.moneda, fecha_donacion:f.fecha_donacion, metodo_pago:f.metodo_pago, referencia_pago:f.referencia_pago, estado:f.estado, descripcion:f.descripcion, comision_gestor:parseFloat(comision), contrato_id: contratoSeleccionado?.id || null }
     const { error } = initial?.id
       ? await supabase.from('donaciones').update(payload).eq('id', initial.id)
       : await supabase.from('donaciones').insert(payload)
@@ -906,6 +941,70 @@ function FmDonacion({ onClose, onSave, onError, initial }) {
   return (
     <>
       <div className="modal-t">{initial?.id ? '✏️ Editar' : '💰 Nueva'} Donacion</div>
+
+      {!initial?.id && (
+        <>
+          <div className="fg full">
+            <label className="fl">Buscar por N° Contrato o Patrocinador</label>
+            <div style={{display:'flex', gap:8}}>
+              <input
+                type="text"
+                placeholder="Ej: CONT-2025-001 o Toyota Perú"
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                style={{flex:1}}
+              />
+              <button className="btn btn-s" onClick={buscarContrato}>
+                🔍 Buscar
+              </button>
+            </div>
+          </div>
+
+          {contratosEncontrados.length > 0 && (
+            <div style={{border:'1px solid #E8EAF0', borderRadius:8, overflow:'hidden', marginBottom:14}}>
+              {contratosEncontrados.map(c => (
+                <div key={c.id}
+                  onClick={() => seleccionarContrato(c)}
+                  style={{
+                    padding:'10px 14px', cursor:'pointer',
+                    borderBottom:'1px solid #E8EAF0',
+                    background: contratoSeleccionado?.id === c.id ? '#FEF2F2' : 'white',
+                    display:'flex', justifyContent:'space-between', alignItems:'center'
+                  }}
+                >
+                  <div>
+                    <strong style={{color:'#E63946'}}>{c.numero_contrato}</strong>
+                    <span style={{margin:'0 8px', color:'#9CA3AF'}}>·</span>
+                    <span>{c.patrocinadores?.nombre_comercial}</span>
+                    <span style={{margin:'0 8px', color:'#9CA3AF'}}>·</span>
+                    <span style={{color:'#6B7280'}}>{c.titulo}</span>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontWeight:600, fontFamily:"'Space Grotesk',sans-serif"}}>
+                      S/ {c.monto_comprometido?.toLocaleString()}
+                    </div>
+                    <span className={`tag ${c.estado === 'activo' ? 'tag-g' : 'tag-n'}`}>
+                      {c.estado}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {contratoSeleccionado && (
+            <div className="ib ib-g" style={{marginBottom:14}}>
+              ✅ Contrato vinculado: <strong>{contratoSeleccionado.numero_contrato}</strong>
+              — {contratoSeleccionado.patrocinadores?.nombre_comercial}
+              <button onClick={() => { setContratoSeleccionado(null); setContratosEncontrados([]); setF(p => ({...p, contrato_id:'', patrocinador_id:'', gestor_id:'', monto:'', descripcion:''})) }}
+                style={{marginLeft:8, background:'none', border:'none', cursor:'pointer', color:'#DC2626'}}>
+                ✕
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
       <div className="fgrid">
         <div className="fg"><label className="fl">Patrocinador *</label>
           <select value={f.patrocinador_id} onChange={e => up('patrocinador_id',e.target.value)}>
@@ -933,6 +1032,7 @@ function FmDonacion({ onClose, onSave, onError, initial }) {
         <div className="fg"><label className="fl">N° Referencia / Operacion</label><input type="text" placeholder="REF-001" value={f.referencia_pago} onChange={e => up('referencia_pago',e.target.value)} /></div>
         <div className="fg full"><label className="fl">Descripcion</label><textarea placeholder="Detalle de la donacion..." value={f.descripcion} onChange={e => up('descripcion',e.target.value)} /></div>
       </div>
+      {esMontoMenor && <div className="ib ib-a" style={{ marginTop:14 }}>⚠️ Pago parcial: monto registrado es menor que el monto comprometido en el contrato (S/ {montoContrato?.toLocaleString()}). Se registrará como pago parcial.</div>}
       {parseFloat(f.monto) > 0 && <div className="ib ib-a" style={{ marginTop:14 }}>💡 Comision automatica al gestor (5%): <strong>S/ {comision}</strong></div>}
       <div className="modal-f">
         <button className="btn btn-s" onClick={onClose}>Cancelar</button>
@@ -943,11 +1043,12 @@ function FmDonacion({ onClose, onSave, onError, initial }) {
 }
 
 function Donaciones() {
-  const { data, loading, reload } = useTable('donaciones','*, patrocinadores(nombre_comercial), gestores(nombre,apellido)')
+  const { data, loading, reload } = useTable('donaciones','*, patrocinadores(nombre_comercial), gestores(nombre,apellido), contratos(numero_contrato)')
   const totR = data.filter(d => d.estado==='recibida').reduce((a,d) => a+(d.monto||0),0)
   const totP = data.filter(d => d.estado==='pendiente').reduce((a,d) => a+(d.monto||0),0)
   const cols = [
     { key:'patrocinadores', label:'Patrocinador', render:(v,r) => <><strong>{v?.nombre_comercial||'—'}</strong><div style={{ color:'var(--t3)',fontSize:11 }}>{r.gestores ? `${r.gestores.nombre} ${r.gestores.apellido}` : '—'}</div></> },
+    { key:'contratos', label:'Contrato', render:v => v ? <code style={{background:'#F3F4F6',padding:'2px 6px',borderRadius:4,fontSize:11}}>{v.numero_contrato}</code> : <span style={{color:'var(--t3)'}}>—</span> },
     { key:'monto', label:'Monto', render:(v,r) => <span className="amt">{fmt(v,r.moneda)}</span> },
     { key:'comision_gestor', label:'Comision 5%', render:v => <span className="amt amt-a">{fmt(v)}</span> },
     { key:'fecha_donacion', label:'Fecha', render:v => fmtDate(v) },
