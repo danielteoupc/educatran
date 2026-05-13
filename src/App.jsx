@@ -3036,6 +3036,7 @@ function Comisiones() {
         .from('donaciones')
         .select('*, gestores(id,nombre,apellido,banco,cuenta_bancaria), patrocinadores(nombre_comercial)')
         .eq('comision_pagada', false)
+        .eq('estado', 'recibida')
         .not('gestor_id', 'is', null)
         .gt('comision_gestor', 0)
         .order('fecha_donacion', { ascending: false })
@@ -3045,8 +3046,55 @@ function Comisiones() {
     cargarPendientes()
   }, [])
 
-  const totalPorPagar = pendientesData.reduce((a, d) => a + (d.comision_gestor || 0), 0)
-  const totalPagado = data.filter(c => c.estado === 'pagado').reduce((a, c) => a + (c.monto_comision || 0), 0)
+  const totalPorPagar = (pendientesData || []).reduce((a, d) => a + (d.comision_gestor || 0), 0)
+  const totalPagado = (data || []).filter(c => c.estado === 'pagado').reduce((a, c) => a + (c.monto_comision || 0), 0)
+
+  const exportComisiones = () => {
+    const comisionesData = (data || []).filter(c => c.estado === 'pagado')
+
+    const ws1Data = [
+      ['GESTOR', 'PATROCINADOR', 'MONTO DONACIÓN', 'COMISIÓN 5%', 'FECHA PAGO', 'MÉTODO', 'ESTADO'],
+      ...comisionesData.map(c => [
+        c.gestores ? `${c.gestores.nombre} ${c.gestores.apellido}` : '—',
+        c.donaciones?.patrocinadores?.nombre_comercial || '—',
+        c.monto_donacion || 0,
+        c.monto_comision || 0,
+        c.fecha_pago || '',
+        c.metodo_pago || '',
+        c.estado || ''
+      ]),
+      ['TOTAL', '', '', comisionesData.reduce((s,c) => s+(c.monto_comision||0), 0), '', '', '']
+    ]
+
+    const ws2Data = [
+      ['GESTOR', 'BANCO', 'CUENTA', 'PATROCINADOR', 'MONTO DONACIÓN', 'COMISIÓN PENDIENTE', 'FECHA DONACIÓN'],
+      ...(pendientesData || []).map(d => [
+        d.gestores ? `${d.gestores.nombre} ${d.gestores.apellido}` : '—',
+        d.gestores?.banco || '—',
+        d.gestores?.cuenta_bancaria || '—',
+        d.patrocinadores?.nombre_comercial || '—',
+        d.monto || 0,
+        d.comision_gestor || 0,
+        d.fecha_donacion || ''
+      ]),
+      ['TOTAL', '', '', '', '', (pendientesData || []).reduce((s,d) => s+(d.comision_gestor||0), 0), '']
+    ]
+
+    const wb = XLSX.utils.book_new()
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data)
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data)
+
+    ws1['!cols'] = [{wch:25},{wch:20},{wch:18},{wch:18},{wch:15},{wch:15},{wch:12}]
+    ws2['!cols'] = [{wch:25},{wch:15},{wch:20},{wch:20},{wch:18},{wch:22},{wch:15}]
+
+    ws1.A1.s = { fill: { fgColor: { rgb: 'FFE63946' } }, font: { bold: true, color: { rgb: 'FFFFFFFF' } } }
+    ws2.A1.s = { fill: { fgColor: { rgb: 'FFF59E0B' } }, font: { bold: true, color: { rgb: 'FFFFFFFF' } } }
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'Comisiones Pagadas')
+    XLSX.utils.book_append_sheet(wb, ws2, 'Comisiones Pendientes')
+
+    XLSX.writeFile(wb, `EDUCATRAN_Comisiones_${new Date().toISOString().split('T')[0]}.xlsx`)
+  }
 
   const colsPagadas = [
     { key:'gestores', label:'Gestor', render:(v, r) => v ? <strong>{v.nombre} {v.apellido}</strong> : '—' },
@@ -3123,6 +3171,7 @@ function Comisiones() {
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
             <div className="srch-w">{IC.srch}<input className="srch" placeholder="Buscar..." value={q} onChange={e => setQ(e.target.value)} /></div>
             <button className="btn-ic" onClick={reload} title="Recargar">{IC.ref}</button>
+            <button className="btn btn-s" onClick={exportComisiones}>📊 Excel</button>
           </div>
         </div>
         <div className="tbl-wrap">
