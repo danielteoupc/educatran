@@ -3049,20 +3049,20 @@ function Comisiones() {
   const totalPagado = data.filter(c => c.estado === 'pagado').reduce((a, c) => a + (c.monto_comision || 0), 0)
 
   const colsPagadas = [
-    { key:'gestores', label:'Gestor', render:v => v ? <strong>{v.nombre} {v.apellido}</strong> : '—' },
-    { key:'donaciones', label:'Donacion', render:v => v ? <span style={{ fontSize:12,color:'var(--t2)' }}>{v.patrocinadores?.nombre_comercial} — {fmt(v.monto)}</span> : '—' },
-    { key:'porcentaje', label:'%', render:v => <span className="tag tag-b">{v||5}%</span> },
-    { key:'monto_comision', label:'Comision', render:v => <span className="amt amt-a">{fmt(v)}</span> },
-    { key:'fecha_pago', label:'Fecha Pago', render:v => v ? fmtDate(v) : <span style={{ color:'var(--t3)' }}>Pendiente</span> },
-    { key:'metodo_pago', label:'Metodo' },
+    { key:'gestores', label:'Gestor', render:(v, r) => v ? <strong>{v.nombre} {v.apellido}</strong> : '—' },
+    { key:'donaciones', label:'Donacion', render:(v, r) => v ? <span style={{ fontSize:12,color:'var(--t2)' }}>{v.patrocinadores?.nombre_comercial} — {fmt(v.monto)}</span> : '—' },
+    { key:'porcentaje', label:'%', render:(v, r) => <span className="tag tag-b">{v||5}%</span> },
+    { key:'monto_comision', label:'Comision', render:(v, r) => <span className="amt amt-a">{fmt(v)}</span> },
+    { key:'fecha_pago', label:'Fecha Pago', render:(v, r) => v ? fmtDate(v) : <span style={{ color:'var(--t3)' }}>Pendiente</span> },
+    { key:'metodo_pago', label:'Metodo', render:(v, r) => v || '—' },
   ]
 
   const colsPendientes = [
-    { key:'gestores', label:'Gestor', render:v => v ? <><strong>{v.nombre} {v.apellido}</strong><div style={{ fontSize:11,color:'var(--t3)' }}>{v.banco} {v.cuenta_bancaria ? `- ${v.cuenta_bancaria}` : ''}</div></> : '—' },
-    { key:'patrocinadores', label:'Patrocinador', render:v => v?.nombre_comercial || '—' },
-    { key:'monto', label:'Donación', render:v => <span className="amt">{fmt(v)}</span> },
-    { key:'comision_gestor', label:'Comisión (5%)', render:v => <span style={{ fontWeight:600, color:'var(--a)' }}>{fmt(v)}</span> },
-    { key:'gestores', label:'Banco', render:v => v?.banco || '—' },
+    { key:'gestores', label:'Gestor', render:(v, r) => v ? <><strong>{v.nombre} {v.apellido}</strong><div style={{ fontSize:11,color:'var(--t3)' }}>{v.banco} {v.cuenta_bancaria ? `- ${v.cuenta_bancaria}` : ''}</div></> : '—' },
+    { key:'patrocinadores', label:'Patrocinador', render:(v, r) => v?.nombre_comercial || '—' },
+    { key:'monto', label:'Donación', render:(v, r) => <span className="amt">{fmt(v)}</span> },
+    { key:'comision_gestor', label:'Comisión (5%)', render:(v, r) => <span style={{ fontWeight:600, color:'var(--a)' }}>{fmt(v)}</span> },
+    { key:'gestores', label:'Banco', render:(v, r) => v?.banco || '—' },
   ]
 
   const dataFiltered = pendientesData.filter(row => !q || [row.gestores?.nombre,row.patrocinadores?.nombre_comercial].some(v => v?.toLowerCase().includes(q.toLowerCase())))
@@ -3098,7 +3098,7 @@ function Comisiones() {
                 <tbody>
                   {data.filter(d => d.estado === 'pagado').map(row => (
                     <tr key={row.id}>
-                      {colsPagadas.map(c => <td key={c.key}>{c.render(row[c.key], row)}</td>)}
+                      {colsPagadas.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key] ?? '—')}</td>)}
                       <td>
                         <div style={{ display:'flex', gap:4 }}>
                           <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
@@ -3135,7 +3135,7 @@ function Comisiones() {
                 <tbody>
                   {dataFiltered.map(row => (
                     <tr key={row.id}>
-                      {colsPendientes.map(c => <td key={c.key}>{c.render(row[c.key], row)}</td>)}
+                      {colsPendientes.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key] ?? '—')}</td>)}
                       <td>
                         <button className="btn btn-s btn-p" onClick={() => setPayModal(row)} style={{ fontSize:12, padding:'6px 12px' }}>💸 Pagar</button>
                       </td>
