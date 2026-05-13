@@ -231,6 +231,302 @@ const fmtDate = d => {
 const ini = s => s ? s[0].toUpperCase() : '?'
 const inis = (a, b) => `${ini(a)}${ini(b)}`
 
+// ─── MODULE DETECTION AND DETAIL RENDERING ────────────────────────────────────
+const detectModule = (data) => {
+  if (data.patrocinador_id && data.monto && data.comision_gestor) return 'donaciones'
+  if (data.nombre_comercial && data.ruc) return 'patrocinadores'
+  if (data.numero_contrato && data.monto_comprometido) return 'contratos'
+  if (data.banco && data.cci && (data.nombre || data.apellido)) return 'gestores'
+  if (data.departamento && (data.comandante || data.voluntarios)) return 'estaciones'
+  if (data.codigo_modular && data.nivel) return 'colegios'
+  if (data.colegios && data.cantidad_kits_entregados) return 'visitas'
+  if (data.tipo && data.categoria && data.monto && data.proveedor) return 'gastos'
+  if (data.monto_comision && data.porcentaje && (data.nombre || data.gestor_id)) return 'comisiones'
+  if (data.cantidad && (data.tipo === 'ingreso' || data.tipo === 'salida')) return 'inventario'
+  return null
+}
+
+const renderDetalleField = (label, value, currency = false) => {
+  if (!label) return null
+  let displayValue = value
+  if (value === null || value === undefined) displayValue = '—'
+  else if (typeof value === 'boolean') displayValue = value ? 'Sí' : 'No'
+  else if (typeof value === 'object') displayValue = '—'
+  else if (currency) displayValue = fmt(value)
+  return (
+    <div key={label} style={{ paddingBottom: 12 }}>
+      <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 14, color: 'var(--t1)', fontWeight: 500 }}>{displayValue}</div>
+    </div>
+  )
+}
+
+const renderDetalleSection = (titulo, campos) => (
+  <div style={{ marginBottom: 18, background: '#F9FAFB', padding: 14, borderRadius: 8 }}>
+    {titulo && <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 12 }}>{titulo}</div>}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 24px' }}>
+      {campos}
+    </div>
+  </div>
+)
+
+function ModalDetalle({ data, onClose }) {
+  if (!data) return null
+  const mod = detectModule(data)
+
+  let headerIcon = '👁️', headerTitle = 'Detalle', sections = []
+
+  if (mod === 'donaciones') {
+    headerIcon = '💰'
+    headerTitle = data.patrocinadores?.nombre_comercial || 'Donación'
+    sections = [
+      { titulo: 'Información General', campos: [
+        renderDetalleField('Patrocinador', data.patrocinadores?.nombre_comercial),
+        renderDetalleField('Gestor', data.gestores ? `${data.gestores.nombre} ${data.gestores.apellido}` : '—'),
+        renderDetalleField('Contrato', data.contratos?.numero_contrato),
+      ]},
+      { titulo: 'Monto', campos: [
+        renderDetalleField('Monto', fmt(data.monto, data.moneda)),
+        renderDetalleField('Comisión (5%)', fmt(data.comision_gestor)),
+        renderDetalleField('Estado', data.estado),
+        renderDetalleField('Método de Pago', data.metodo_pago),
+        renderDetalleField('Fecha', fmtDate(data.fecha_donacion)),
+        renderDetalleField('N° Referencia', data.referencia_pago),
+      ]},
+      data.descripcion && { titulo: 'Descripción', campos: [renderDetalleField(null, data.descripcion)] },
+    ]
+  } else if (mod === 'patrocinadores') {
+    headerIcon = data.logo_url ? '🖼️' : '🏢'
+    headerTitle = data.nombre_comercial
+    sections = [
+      { titulo: 'Datos de la Empresa', campos: [
+        renderDetalleField('Razón Social', data.razon_social),
+        renderDetalleField('RUC', data.ruc),
+        renderDetalleField('Sector', data.sector),
+        renderDetalleField('País', data.pais),
+        renderDetalleField('Ciudad', data.ciudad),
+      ]},
+      { titulo: 'Contacto', campos: [
+        renderDetalleField('Contacto', data.nombre_contacto),
+        renderDetalleField('Email', data.email_contacto),
+        renderDetalleField('Teléfono', data.telefono_contacto),
+      ]},
+      { titulo: 'Actividad', campos: [
+        <div key="total" style={{ paddingBottom: 12 }}>
+          <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>Total Donado</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--g)', fontFamily: "'Space Grotesk',sans-serif" }}>{fmt(data.total_donado)}</div>
+        </div>,
+        renderDetalleField('Estado', data.activo ? 'Activo' : 'Inactivo'),
+      ]},
+    ]
+  } else if (mod === 'contratos') {
+    headerIcon = '📄'
+    headerTitle = data.numero_contrato
+    sections = [
+      { titulo: 'Partes', campos: [
+        renderDetalleField('Patrocinador', data.patrocinadores?.nombre_comercial),
+        renderDetalleField('Gestor', data.gestores ? `${data.gestores.nombre} ${data.gestores.apellido}` : '—'),
+      ]},
+      { titulo: 'Condiciones', campos: [
+        renderDetalleField('Título', data.titulo),
+        renderDetalleField('Tipo', data.tipo),
+        renderDetalleField('Monto', fmt(data.monto_comprometido, data.moneda)),
+        renderDetalleField('Moneda', data.moneda),
+        renderDetalleField('Inicio', fmtDate(data.fecha_inicio)),
+        renderDetalleField('Vencimiento', fmtDate(data.fecha_vencimiento)),
+        renderDetalleField('Estado', data.estado),
+      ]},
+    ]
+  } else if (mod === 'gestores') {
+    headerIcon = '🤝'
+    headerTitle = `${data.nombre} ${data.apellido}`
+    sections = [
+      { titulo: 'Datos Personales', campos: [
+        renderDetalleField('DNI', data.dni),
+        renderDetalleField('Email', data.email),
+        renderDetalleField('Teléfono', data.telefono),
+      ]},
+      { titulo: 'Datos Bancarios', campos: [
+        renderDetalleField('Banco', data.banco),
+        renderDetalleField('N° Cuenta', data.cuenta_bancaria),
+        renderDetalleField('CCI', data.cci),
+      ]},
+      { titulo: 'Actividad', campos: [
+        <div key="total" style={{ paddingBottom: 12 }}>
+          <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>Total Gestionado</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--g)', fontFamily: "'Space Grotesk',sans-serif" }}>{fmt(data.total_donaciones_gestionadas)}</div>
+        </div>,
+        renderDetalleField('Comisiones Pagadas', fmt(data.total_comisiones_pagadas)),
+        renderDetalleField('Comisión %', `${data.comision_porcentaje}%`),
+      ]},
+    ]
+  } else if (mod === 'estaciones') {
+    headerIcon = '🚒'
+    headerTitle = data.nombre
+    sections = [
+      { titulo: 'Ubicación', campos: [
+        renderDetalleField('Departamento', data.departamento),
+        renderDetalleField('Provincia', data.provincia),
+        renderDetalleField('Distrito', data.distrito),
+        renderDetalleField('Dirección', data.direccion),
+      ]},
+      { titulo: 'Personal', campos: [
+        renderDetalleField('Comandante', data.comandante),
+        renderDetalleField('N° Voluntarios', data.voluntarios),
+      ]},
+      { titulo: 'Contacto', campos: [
+        renderDetalleField('Email', data.email),
+        renderDetalleField('Teléfono', data.telefono),
+      ]},
+    ]
+  } else if (mod === 'colegios') {
+    headerIcon = '🏫'
+    headerTitle = data.nombre
+    sections = [
+      { titulo: 'Institución', campos: [
+        renderDetalleField('Nivel', data.nivel),
+        renderDetalleField('Código Modular', data.codigo_modular),
+        renderDetalleField('N° Alumnos', data.num_alumnos),
+        renderDetalleField('Director', data.director),
+      ]},
+      { titulo: 'Ubicación', campos: [
+        renderDetalleField('Distrito', data.distrito),
+        renderDetalleField('Provincia', data.provincia),
+        renderDetalleField('Departamento', data.departamento),
+        renderDetalleField('Dirección', data.direccion),
+      ]},
+      { titulo: 'Asignación', campos: [
+        renderDetalleField('Estación Bomberos', data.estaciones_bomberos?.nombre),
+      ]},
+    ]
+  } else if (mod === 'visitas') {
+    headerIcon = '🎮'
+    headerTitle = `${data.colegios?.nombre} - ${fmtDate(data.fecha_visita)}`
+    sections = [
+      { titulo: 'Entrega', campos: [
+        <div key="kits" style={{ paddingBottom: 12 }}>
+          <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>Kits Entregados</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--b)', fontFamily: "'Space Grotesk',sans-serif" }}>{data.cantidad_kits_entregados || 0}</div>
+        </div>,
+        renderDetalleField('Alumnos Capacitados', data.num_alumnos_capacitados),
+        renderDetalleField('Profesores Presentes', data.num_profesores_presentes),
+      ]},
+      { titulo: 'Detalles', campos: [
+        renderDetalleField('Colegio', data.colegios?.nombre),
+        renderDetalleField('Estación', data.estaciones_bomberos?.nombre),
+        renderDetalleField('Bombero', data.usuarios ? `${data.usuarios.nombre} ${data.usuarios.apellido}` : '—'),
+        renderDetalleField('Hora Inicio', data.hora_inicio),
+        renderDetalleField('Hora Fin', data.hora_fin),
+      ]},
+      { titulo: 'Contenido', campos: [
+        renderDetalleField('Temas Tratados', data.temas_tratados),
+        renderDetalleField('Observaciones', data.observaciones),
+      ]},
+      { titulo: 'Estado', campos: [
+        <div key="estado" style={{ paddingBottom: 12, gridColumn: '1 / -1' }}>
+          <span className={`tag tag-${data.estado === 'completada' ? 'g' : data.estado === 'programada' ? 'a' : 'n'}`} style={{ fontSize: 12, padding: '6px 12px' }}>
+            {data.estado}
+          </span>
+        </div>,
+      ]},
+    ]
+  } else if (mod === 'gastos') {
+    headerIcon = '💸'
+    headerTitle = data.tipo
+    sections = [
+      { titulo: 'Gasto', campos: [
+        renderDetalleField('Tipo', data.tipo),
+        renderDetalleField('Categoría', data.categoria),
+        <div key="monto" style={{ paddingBottom: 12 }}>
+          <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>Monto</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--e)', fontFamily: "'Space Grotesk',sans-serif" }}>{fmt(data.monto)}</div>
+        </div>,
+        renderDetalleField('Fecha', fmtDate(data.fecha)),
+      ]},
+      { titulo: 'Proveedor', campos: [
+        renderDetalleField('Nombre', data.proveedor),
+        renderDetalleField('N° Factura', data.numero_factura),
+      ]},
+      { titulo: 'Estado', campos: [
+        <div key="estado" style={{ paddingBottom: 12, gridColumn: '1 / -1' }}>
+          <span className={`tag tag-${data.estado === 'pagado' ? 'g' : 'a'}`} style={{ fontSize: 12, padding: '6px 12px' }}>
+            {data.estado}
+          </span>
+        </div>,
+      ]},
+    ]
+  } else if (mod === 'comisiones') {
+    headerIcon = '🤝'
+    headerTitle = data.nombre || (data.gestores ? `${data.gestores.nombre} ${data.gestores.apellido}` : 'Comisión')
+    sections = [
+      { titulo: 'Comisión', campos: [
+        <div key="monto" style={{ paddingBottom: 12 }}>
+          <div style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 4 }}>Monto Comisión</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--g)', fontFamily: "'Space Grotesk',sans-serif" }}>{fmt(data.monto_comision)}</div>
+        </div>,
+        renderDetalleField('Porcentaje', `${data.porcentaje}%`),
+        renderDetalleField('Donación Base', fmt(data.monto_donacion_base)),
+      ]},
+      { titulo: 'Pago', campos: [
+        renderDetalleField('Fecha Pago', fmtDate(data.fecha_pago)),
+        renderDetalleField('Método', data.metodo_pago),
+        renderDetalleField('N° Referencia', data.numero_referencia),
+      ]},
+      { titulo: 'Estado', campos: [
+        <div key="estado" style={{ paddingBottom: 12, gridColumn: '1 / -1' }}>
+          <span className={`tag tag-${data.estado === 'pagada' ? 'g' : 'a'}`} style={{ fontSize: 12, padding: '6px 12px' }}>
+            {data.estado}
+          </span>
+        </div>,
+      ]},
+    ]
+  } else if (mod === 'inventario') {
+    const badge = data.tipo === 'ingreso' ? 'tag-g' : 'tag-e'
+    headerIcon = '📦'
+    headerTitle = `${data.tipo === 'ingreso' ? 'INGRESO' : 'SALIDA'}`
+    sections = [
+      { titulo: 'Movimiento', campos: [
+        <div key="tipo" style={{ paddingBottom: 12, gridColumn: '1 / -1' }}>
+          <span className={`tag ${badge}`} style={{ fontSize: 12, padding: '6px 12px' }}>
+            {data.tipo === 'ingreso' ? 'INGRESO' : 'SALIDA'}
+          </span>
+        </div>,
+        renderDetalleField('Cantidad', data.cantidad),
+        renderDetalleField('Stock Resultante', data.stock_resultante),
+        renderDetalleField('Fecha', fmtDate(data.fecha)),
+      ]},
+      { titulo: 'Detalles', campos: [
+        renderDetalleField('Motivo', data.motivo),
+        renderDetalleField('Lote', data.lote),
+        renderDetalleField('Proveedor', data.proveedor),
+        renderDetalleField('Costo Unitario', fmt(data.costo_unitario)),
+      ]},
+    ]
+  }
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 700 }}>
+        <div className="modal-t" style={{ background: '#FEF2F2', padding: '16px 20px', fontSize: 16 }}>
+          <span style={{ fontSize: 20, marginRight: 8 }}>{headerIcon}</span>
+          <strong>{headerTitle}</strong>
+          <button onClick={onClose} style={{ position: 'absolute', right: 20, top: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        </div>
+        <div style={{ padding: '20px' }}>
+          {sections.filter(Boolean).map((sec, i) => (
+            <div key={i}>
+              {renderDetalleSection(sec.titulo, sec.campos)}
+            </div>
+          ))}
+        </div>
+        <div className="modal-f">
+          <button className="btn btn-s" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── EXPORTACIÓN Y PDF ────────────────────────────────────────────────────────
 function exportXLSX(rows, filename) {
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -590,32 +886,7 @@ function Page({ title, data, loading, cols, addLabel, Form, reload, filterFn, he
         </div>
       )}
 
-      {viewRow && (
-        <div className="overlay" onClick={e => e.target === e.currentTarget && setViewRow(null)}>
-          <div className="modal">
-            <div className="modal-t">👁️ Detalle del registro</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
-              {Object.entries(viewRow)
-                .filter(([k]) => !['id','created_at','updated_at'].includes(k))
-                .map(([k,v]) => (
-                  <div key={k} className="fg">
-                    <div className="fl">{k.replace(/_/g,' ').toUpperCase()}</div>
-                    <div style={{ fontSize:13, padding:'6px 0' }}>
-                      {v === null || v === undefined ? '—'
-                        : typeof v === 'boolean' ? (v ? 'Sí' : 'No')
-                        : typeof v === 'object' ? JSON.stringify(v)
-                        : String(v)}
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-            <div className="modal-f">
-              <button className="btn btn-s" onClick={() => setViewRow(null)}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {viewRow && <ModalDetalle data={viewRow} onClose={() => setViewRow(null)} />}
 
       {deleteRow && (
         <div className="overlay">
@@ -1648,32 +1919,7 @@ function Estaciones() {
         </div>
       )}
 
-      {viewRow && (
-        <div className="overlay" onClick={e => e.target === e.currentTarget && setViewRow(null)}>
-          <div className="modal">
-            <div className="modal-t">👁️ Detalle del registro</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
-              {Object.entries(viewRow)
-                .filter(([k]) => !['id','created_at','updated_at'].includes(k))
-                .map(([k,v]) => (
-                  <div key={k} className="fg">
-                    <div className="fl">{k.replace(/_/g,' ').toUpperCase()}</div>
-                    <div style={{ fontSize:13, padding:'6px 0' }}>
-                      {v === null || v === undefined ? '—'
-                        : typeof v === 'boolean' ? (v ? 'Sí' : 'No')
-                        : typeof v === 'object' ? JSON.stringify(v)
-                        : String(v)}
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-            <div className="modal-f">
-              <button className="btn btn-s" onClick={() => setViewRow(null)}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {viewRow && <ModalDetalle data={viewRow} onClose={() => setViewRow(null)} />}
 
       {deleteRow && (
         <div className="overlay" onClick={e => e.target === e.currentTarget && setDeleteRow(null)}>
@@ -1884,32 +2130,7 @@ function Colegios() {
         </div>
       )}
 
-      {viewRow && (
-        <div className="overlay" onClick={e => e.target === e.currentTarget && setViewRow(null)}>
-          <div className="modal">
-            <div className="modal-t">👁️ Detalle del registro</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
-              {Object.entries(viewRow)
-                .filter(([k]) => !['id','created_at','updated_at'].includes(k))
-                .map(([k,v]) => (
-                  <div key={k} className="fg">
-                    <div className="fl">{k.replace(/_/g,' ').toUpperCase()}</div>
-                    <div style={{ fontSize:13, padding:'6px 0' }}>
-                      {v === null || v === undefined ? '—'
-                        : typeof v === 'boolean' ? (v ? 'Sí' : 'No')
-                        : typeof v === 'object' ? JSON.stringify(v)
-                        : String(v)}
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-            <div className="modal-f">
-              <button className="btn btn-s" onClick={() => setViewRow(null)}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {viewRow && <ModalDetalle data={viewRow} onClose={() => setViewRow(null)} />}
 
       {deleteRow && (
         <div className="overlay" onClick={e => e.target === e.currentTarget && setDeleteRow(null)}>
@@ -2171,32 +2392,7 @@ function Visitas() {
         </div>
       )}
 
-      {viewRow && (
-        <div className="overlay" onClick={e => e.target === e.currentTarget && setViewRow(null)}>
-          <div className="modal">
-            <div className="modal-t">👁️ Detalle del registro</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 20px' }}>
-              {Object.entries(viewRow)
-                .filter(([k]) => !['id','created_at','updated_at'].includes(k))
-                .map(([k,v]) => (
-                  <div key={k} className="fg">
-                    <div className="fl">{k.replace(/_/g,' ').toUpperCase()}</div>
-                    <div style={{ fontSize:13, padding:'6px 0' }}>
-                      {v === null || v === undefined ? '—'
-                        : typeof v === 'boolean' ? (v ? 'Sí' : 'No')
-                        : typeof v === 'object' ? JSON.stringify(v)
-                        : String(v)}
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-            <div className="modal-f">
-              <button className="btn btn-s" onClick={() => setViewRow(null)}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {viewRow && <ModalDetalle data={viewRow} onClose={() => setViewRow(null)} />}
 
       {deleteRow && (
         <div className="overlay" onClick={e => e.target === e.currentTarget && setDeleteRow(null)}>
