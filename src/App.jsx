@@ -2967,26 +2967,215 @@ function FmComision({ onClose, onSave, onError, initial }) {
   )
 }
 
+function FmPagarComision({ onClose, onSave, onError, donacion, gestor }) {
+  const [f, setF] = useState({ fecha_pago: new Date().toISOString().split('T')[0], metodo_pago: 'Transferencia', referencia_pago: '' })
+  const [saving, setSaving] = useState(false)
+  const up = (k,v) => setF(p => ({...p,[k]:v}))
+  const save = async () => {
+    setSaving(true)
+    const payload = {
+      gestor_id: gestor.id,
+      donacion_id: donacion.id,
+      monto_donacion: donacion.monto,
+      porcentaje: 5,
+      monto_comision: donacion.comision_gestor,
+      fecha_pago: f.fecha_pago,
+      metodo_pago: f.metodo_pago,
+      referencia_pago: f.referencia_pago,
+      estado: 'pagado'
+    }
+    const { error: err1 } = await supabase.from('comisiones').insert(payload)
+    if (err1) { setSaving(false); onError(err1.message); return }
+
+    await supabase.from('donaciones').update({ comision_pagada: true }).eq('id', donacion.id)
+
+    const { data: totalGest } = await supabase
+      .from('comisiones')
+      .select('monto_comision')
+      .eq('gestor_id', gestor.id)
+      .eq('estado', 'pagado')
+    const nuevoTotal = totalGest?.reduce((s, c) => s + (c.monto_comision || 0), 0) || 0
+    await supabase.from('gestores').update({ total_comisiones_pagadas: nuevoTotal }).eq('id', gestor.id)
+
+    setSaving(false)
+    onSave('✅ Comisión pagada correctamente')
+  }
+  return (
+    <>
+      <div className="modal-t">💸 Pagar Comisión</div>
+      <div className="fgrid">
+        <div className="fg full"><label className="fl">Gestor</label><div style={{ padding:'8px 0', fontWeight: 500 }}>{gestor.nombre} {gestor.apellido}</div></div>
+        <div className="fg full"><label className="fl">Monto Comisión</label><div style={{ padding:'8px 0', fontWeight: 600, fontSize: 16, color: 'var(--a)' }}>{fmt(donacion.comision_gestor)}</div></div>
+        <div className="fg"><label className="fl">Fecha de Pago *</label><input type="date" value={f.fecha_pago} onChange={e => up('fecha_pago',e.target.value)} /></div>
+        <div className="fg"><label className="fl">Método de Pago</label><select value={f.metodo_pago} onChange={e => up('metodo_pago',e.target.value)}><option>Transferencia</option><option>Efectivo</option><option>Cheque</option></select></div>
+        <div className="fg full"><label className="fl">N° Referencia</label><input value={f.referencia_pago} onChange={e => up('referencia_pago',e.target.value)} placeholder="N° operación" /></div>
+      </div>
+      <div className="modal-f">
+        <button className="btn btn-s" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-p" onClick={save} disabled={saving}>{saving ? <><span className="spin" /> Guardando...</> : 'Confirmar Pago'}</button>
+      </div>
+    </>
+  )
+}
+
 function Comisiones() {
   const { data, loading, reload } = useTable('comisiones','*, gestores(nombre,apellido), donaciones(monto,patrocinadores(nombre_comercial))')
-  const pendiente = data.filter(c => c.estado==='pendiente').reduce((a,c) => a+(c.monto_comision||0),0)
-  const pagado    = data.filter(c => c.estado==='pagado').reduce((a,c) => a+(c.monto_comision||0),0)
-  const cols = [
+  const [pendientesData, setPendientesData] = useState([])
+  const [pendLoading, setPendLoading] = useState(true)
+  const [modal, setModal] = useState(false)
+  const [editRow, setEditRow] = useState(null)
+  const [notif, setNotif] = useState(null)
+  const [payModal, setPayModal] = useState(null)
+  const [q, setQ] = useState('')
+  const showN = (msg, type = 'ok') => setNotif({ msg, type })
+
+  useEffect(() => {
+    const cargarPendientes = async () => {
+      setPendLoading(true)
+      const { data: pend } = await supabase
+        .from('donaciones')
+        .select('*, gestores(id,nombre,apellido,banco,cuenta_bancaria), patrocinadores(nombre_comercial)')
+        .eq('comision_pagada', false)
+        .not('gestor_id', 'is', null)
+        .gt('comision_gestor', 0)
+        .order('fecha_donacion', { ascending: false })
+      setPendientesData(pend || [])
+      setPendLoading(false)
+    }
+    cargarPendientes()
+  }, [])
+
+  const totalPorPagar = pendientesData.reduce((a, d) => a + (d.comision_gestor || 0), 0)
+  const totalPagado = data.filter(c => c.estado === 'pagado').reduce((a, c) => a + (c.monto_comision || 0), 0)
+
+  const colsPagadas = [
     { key:'gestores', label:'Gestor', render:v => v ? <strong>{v.nombre} {v.apellido}</strong> : '—' },
     { key:'donaciones', label:'Donacion', render:v => v ? <span style={{ fontSize:12,color:'var(--t2)' }}>{v.patrocinadores?.nombre_comercial} — {fmt(v.monto)}</span> : '—' },
     { key:'porcentaje', label:'%', render:v => <span className="tag tag-b">{v||5}%</span> },
     { key:'monto_comision', label:'Comision', render:v => <span className="amt amt-a">{fmt(v)}</span> },
     { key:'fecha_pago', label:'Fecha Pago', render:v => v ? fmtDate(v) : <span style={{ color:'var(--t3)' }}>Pendiente</span> },
     { key:'metodo_pago', label:'Metodo' },
-    { key:'estado', label:'Estado', render:v => <Tag s={v} /> },
   ]
+
+  const colsPendientes = [
+    { key:'gestores', label:'Gestor', render:v => v ? <><strong>{v.nombre} {v.apellido}</strong><div style={{ fontSize:11,color:'var(--t3)' }}>{v.banco} {v.cuenta_bancaria ? `- ${v.cuenta_bancaria}` : ''}</div></> : '—' },
+    { key:'patrocinadores', label:'Patrocinador', render:v => v?.nombre_comercial || '—' },
+    { key:'monto', label:'Donación', render:v => <span className="amt">{fmt(v)}</span> },
+    { key:'comision_gestor', label:'Comisión (5%)', render:v => <span style={{ fontWeight:600, color:'var(--a)' }}>{fmt(v)}</span> },
+    { key:'gestores', label:'Banco', render:v => v?.banco || '—' },
+  ]
+
+  const dataFiltered = pendientesData.filter(row => !q || [row.gestores?.nombre,row.patrocinadores?.nombre_comercial].some(v => v?.toLowerCase().includes(q.toLowerCase())))
+
   const header = (
     <div className="fin-bar">
-      <div className="fin-tile"><div className="fin-l">Por Pagar</div><div className="fin-v" style={{ color:'var(--a)' }}>{fmt(pendiente)}</div></div>
-      <div className="fin-tile"><div className="fin-l">Ya Pagado</div><div className="fin-v" style={{ color:'var(--g)' }}>{fmt(pagado)}</div></div>
+      <div className="fin-tile"><div className="fin-l">Por Pagar</div><div className="fin-v" style={{ color:'var(--a)' }}>{fmt(totalPorPagar)}</div></div>
+      <div className="fin-tile"><div className="fin-l">Ya Pagado</div><div className="fin-v" style={{ color:'var(--g)' }}>{fmt(totalPagado)}</div></div>
     </div>
   )
-  return <Page title="Comisiones de Gestores (5%)" data={data} loading={loading} reload={reload} cols={cols} addLabel="Registrar Pago" Form={FmComision} deleteTable="comisiones" exportFn={exportarComisiones} headerExtra={header} filterFn={(r,q) => [r.gestores?.nombre,r.gestores?.apellido,r.estado].some(v => v&&v.toLowerCase().includes(q.toLowerCase()))} />
+
+  return (
+    <div className="content">
+      {notif && <Notif msg={notif.msg} type={notif.type} onClose={() => setNotif(null)} />}
+
+      {/* SECTION: COMISIONES PAGADAS */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card-h">
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span className="card-t">✅ Comisiones Pagadas</span>
+            <span className="tag tag-g">{data.length}</span>
+          </div>
+          <button className="btn btn-p" onClick={() => { setEditRow(null); setModal(true) }}>+ Registrar Pago</button>
+        </div>
+        {header}
+        <div className="tbl-wrap" style={{ marginTop: 16 }}>
+          {loading
+            ? <div className="loader"><div className="ring" /> Cargando...</div>
+            : data.filter(d => d.estado === 'pagado').length === 0
+            ? <div style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</div>
+            : <table>
+                <thead><tr>{colsPagadas.map(c => <th key={c.key}>{c.label}</th>)}<th>Acciones</th></tr></thead>
+                <tbody>
+                  {data.filter(d => d.estado === 'pagado').map(row => (
+                    <tr key={row.id}>
+                      {colsPagadas.map(c => <td key={c.key}>{c.render(row[c.key], row)}</td>)}
+                      <td>
+                        <div style={{ display:'flex', gap:4 }}>
+                          <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
+                          <button className="btn btn-s btn-sm" title="Ver" onClick={() => setEditRow(row)}>👁️</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          }
+        </div>
+      </div>
+
+      {/* SECTION: COMISIONES PENDIENTES */}
+      <div className="card" style={{ border:'1px solid #FDE68A', background:'#FFFBEB' }}>
+        <div className="card-h" style={{ color:'#D97706' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span className="card-t" style={{ color:'#D97706' }}>⏳ Comisiones Pendientes de Pago</span>
+            <span className="tag tag-a">{dataFiltered.length}</span>
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <div className="srch-w">{IC.srch}<input className="srch" placeholder="Buscar..." value={q} onChange={e => setQ(e.target.value)} /></div>
+            <button className="btn-ic" onClick={reload} title="Recargar">{IC.ref}</button>
+          </div>
+        </div>
+        <div className="tbl-wrap">
+          {pendLoading
+            ? <div className="loader"><div className="ring" /> Cargando pendientes...</div>
+            : dataFiltered.length === 0
+            ? <div style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin comisiones pendientes</div>
+            : <table>
+                <thead><tr>{colsPendientes.map(c => <th key={c.key}>{c.label}</th>)}<th>Acción</th></tr></thead>
+                <tbody>
+                  {dataFiltered.map(row => (
+                    <tr key={row.id}>
+                      {colsPendientes.map(c => <td key={c.key}>{c.render(row[c.key], row)}</td>)}
+                      <td>
+                        <button className="btn btn-s btn-p" onClick={() => setPayModal(row)} style={{ fontSize:12, padding:'6px 12px' }}>💸 Pagar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          }
+        </div>
+      </div>
+
+      {/* MODALS */}
+      {modal && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setModal(false)}>
+          <div className="modal">
+            <FmComision
+              initial={editRow}
+              onClose={() => { setModal(false); setEditRow(null) }}
+              onSave={msg => { setModal(false); setEditRow(null); showN(msg||'Guardado correctamente'); reload(); setPendientesData(pd => pd.filter(p => p.id !== editRow?.id)) }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+
+      {payModal && (
+        <div className="overlay" onClick={e => e.target === e.currentTarget && setPayModal(null)}>
+          <div className="modal" style={{ maxWidth: 450 }}>
+            <FmPagarComision
+              donacion={payModal}
+              gestor={payModal.gestores}
+              onClose={() => setPayModal(null)}
+              onSave={msg => { setPayModal(null); showN(msg); reload(); setPendientesData(pd => pd.filter(p => p.id !== payModal.id)) }}
+              onError={msg => showN(msg, 'err')}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── NAV CONFIG ───────────────────────────────────────────────────────────────
