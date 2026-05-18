@@ -29,7 +29,9 @@
       "Bash(copy \"C:\\\\CVEDUCATRAN\\\\educatran\\\\img\\\\FONDO3.jpg\" \"C:\\\\CVEDUCATRAN\\\\educatran\\\\public\\\\fondo3.jpg\")",
       "Bash(dir \"C:\\\\CVEDUCATRAN\\\\educatran\\\\public\\\\\" | findstr /I \"fondo\\\\|logo\")",
       "Bash(Get-ChildItem -Path \"C:\\\\CVEDUCATRAN\\\\educatran\\\\src\\\\img\" -Name)",
-      "Bash(Select-String \"fondo1\")"
+      "Bash(Select-String \"fondo1\")",
+      "Bash(git revert *)",
+      "Bash(git stash *)"
     ]
   }
 }
