@@ -3438,15 +3438,15 @@ function Shell({ user, onLogout }) {
             src="/logo.jpg"
             alt="EDUCATRAN"
             style={{
-              width: 52,
-              height: 52,
-              objectFit: 'cover',
-              borderRadius: 12,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.15)',
-              flexShrink: 0
+              width: '100%',
+              maxWidth: '160px',
+              height: 'auto',
+              display: 'block',
+              margin: '0 auto',
+              padding: '8px 12px',
+              objectFit: 'contain'
             }}
           />
-          <div><h1>EDUCATRAN</h1><p>Patrocinios Viales</p></div>
         </div>
 
         {noSec.map(n => (
