@@ -25,7 +25,9 @@
       "Bash(Select-Object -First 30)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\CVEDUCATRAN\\\\educatran\" -Recurse -Depth 2 | Where-Object { $_.PSIsContainer -eq $false } | Select-Object -First 30 | Format-Table FullName)",
       "Skill(frontend-design:frontend-design)",
-      "Bash(grep -n \"^\\\\`\\\\|const.*=\\\\s*\\\\`\\\\|<style\" src/App.jsx)"
+      "Bash(grep -n \"^\\\\`\\\\|const.*=\\\\s*\\\\`\\\\|<style\" src/App.jsx)",
+      "Bash(copy \"C:\\\\CVEDUCATRAN\\\\educatran\\\\img\\\\FONDO3.jpg\" \"C:\\\\CVEDUCATRAN\\\\educatran\\\\public\\\\fondo3.jpg\")",
+      "Bash(dir \"C:\\\\CVEDUCATRAN\\\\educatran\\\\public\\\\\" | findstr /I \"fondo\\\\|logo\")"
     ]
   }
 }

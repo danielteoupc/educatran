@@ -54,8 +54,8 @@ body{background:linear-gradient(135deg,#EEF2FF 0%,#F0F2F8 50%,#FFF5F5 100%);back
 .s-logo{padding:20px 16px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .s-logo-box{width:38px;height:38px;background:linear-gradient(135deg,#E63946,#B5282F);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;color:#fff;flex-shrink:0;box-shadow:0 4px 14px rgba(230,57,70,0.4);transition:all 0.3s ease}
 .s-logo:hover .s-logo-box{transform:rotate(-8deg) scale(1.1);box-shadow:0 6px 20px rgba(230,57,70,0.6)}
-.s-logo h1{color:#fff;font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;line-height:1.2;letter-spacing:-0.3px}
-.s-logo p{color:rgba(255,255,255,0.3);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;margin-top:1px}
+.s-logo h1{color:#fff;font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:800;line-height:1.2;letter-spacing:-0.3px}
+.s-logo p{color:rgba(255,255,255,0.3);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-top:1px}
 
 /* SECCIÓN LABELS */
 .s-sec{padding:16px 16px 5px;color:rgba(255,255,255,0.25);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700}
@@ -180,8 +180,9 @@ textarea{resize:vertical;min-height:72px}
 
 /* LOGIN */
 .lw{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
-.ll{background:var(--sb);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;position:relative;overflow:hidden}
-.ll::after{content:'';position:absolute;width:500px;height:500px;background:radial-gradient(circle,rgba(230,57,70,.12) 0%,transparent 70%);top:-120px;right:-120px;pointer-events:none}
+.ll{background:url('/fondo3.jpg') center center / cover no-repeat;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;position:relative;overflow:hidden}
+.ll::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:0}
+.ll > *{position:relative;z-index:1}
 .lr{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:60px}
 .lform{width:100%;max-width:360px}
 .l-logo{width:68px;height:68px;background:var(--r);border-radius:18px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:30px;color:#fff;margin:0 auto 22px}
@@ -279,9 +280,9 @@ textarea{resize:vertical;min-height:72px}
 @media (max-width: 768px) {
   .layout{flex-direction:column}
   .sidebar{display:none}
-  .main{height:100svh;overflow-y:auto}
-  .topbar{padding:0 14px;height:54px}
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:1001;height:54px;padding:0 14px}
   .topbar-t{font-size:16px;font-weight:700}
+  .main{padding-top:110px;padding-bottom:16px;height:100svh;overflow-y:auto}
   .content{padding:16px 14px 24px}
   .stats{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
   .stat{padding:16px 14px;border-radius:14px}
@@ -311,8 +312,9 @@ textarea{resize:vertical;min-height:72px}
   .btn-p{min-height:44px}
   .btn-ic{width:36px;height:36px;border-radius:8px}
   .lw{grid-template-columns:1fr;min-height:100svh}
-  .ll{padding:40px 24px 30px;min-height:auto}
-  .ll::after{display:none}
+  .ll{padding:40px 24px 30px;min-height:auto;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ll::before{z-index:0}
+  .ll > *{position:relative;z-index:1}
   .lr{padding:32px 24px 40px;background:var(--bg)}
   .lform{max-width:100%}
   .l-creds{display:none}
@@ -3434,13 +3436,13 @@ function Shell({ user, onLogout }) {
         <div className="s-logo">
           <img
             src="/logo.jpg"
-            alt="E"
+            alt="EDUCATRAN"
             style={{
-              width: 42,
-              height: 42,
+              width: 52,
+              height: 52,
               objectFit: 'cover',
-              borderRadius: 10,
-              boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+              borderRadius: 12,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.15)',
               flexShrink: 0
             }}
           />
