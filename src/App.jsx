@@ -88,7 +88,6 @@ body{background:linear-gradient(135deg,#EEF2FF 0%,#F0F2F8 50%,#FFF5F5 100%);back
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#E63946,#FF6B6B,#E63946);transform:scaleX(0);transition:transform 0.3s ease}
 .stat:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(230,57,70,0.12),0 4px 12px rgba(0,0,0,0.06);border-color:rgba(230,57,70,0.2)}
 .stat:hover::before{transform:scaleX(1)}
-.stat:hover .stat-v{background:linear-gradient(135deg,#E63946,#FF6B6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .stat-ico{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:11px;box-shadow:var(--shadow-sm)}
 .stat-l{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .stat-v{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-bottom:3px;line-height:1.1;transition:all 0.25s ease}
@@ -213,7 +212,6 @@ textarea{resize:vertical;min-height:72px}
 .fin-tile::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#E63946,#FF6B6B,#E63946);transform:scaleX(0);transition:transform 0.3s ease;transform-origin:left}
 .fin-tile:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(230,57,70,0.12),0 4px 12px rgba(0,0,0,0.06);border-color:rgba(230,57,70,0.2)}
 .fin-tile:hover::before{transform:scaleX(1)}
-.fin-tile:hover .fin-v{background:linear-gradient(135deg,#E63946,#FF6B6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .fin-l{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
 .fin-v{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;transition:all 0.25s ease;line-height:1.2}
 
