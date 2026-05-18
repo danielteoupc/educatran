@@ -35,8 +35,9 @@ const CSS = `
   --shadow-lg:0 12px 40px rgba(0,0,0,0.12);
   --shadow-red:0 8px 24px rgba(230,57,70,0.2);
   --rad:10px;--rads:6px;--radl:14px;
-  font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:var(--t1);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;color:var(--t1);
 }
+body{font-size:16px}
 body{background:linear-gradient(135deg,#EEF2FF 0%,#F0F2F8 50%,#FFF5F5 100%);background-attachment:fixed;margin:0}
 
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -60,7 +61,7 @@ body{background:linear-gradient(135deg,#EEF2FF 0%,#F0F2F8 50%,#FFF5F5 100%);back
 .s-sec{padding:16px 16px 5px;color:rgba(255,255,255,0.25);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700}
 
 /* NAV ITEMS */
-.s-item{display:flex;align-items:center;gap:10px;padding:9px 16px;margin:1px 8px;color:rgba(255,255,255,0.55);font-size:14px;font-weight:500;cursor:pointer;position:relative;border:none;background:none;width:calc(100% - 16px);text-align:left;border-radius:10px;transition:all 0.18s cubic-bezier(0.4,0,0.2,1);letter-spacing:-0.1px}
+.s-item{display:flex;align-items:center;gap:10px;padding:9px 16px;margin:1px 8px;color:rgba(255,255,255,0.55);font-size:15px;font-weight:500;cursor:pointer;position:relative;border:none;background:none;width:calc(100% - 16px);text-align:left;border-radius:10px;transition:all 0.18s cubic-bezier(0.4,0,0.2,1);letter-spacing:-0.1px}
 .s-item svg{opacity:0.55;flex-shrink:0;width:16px;height:16px;transition:all 0.18s ease}
 .s-item:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.9);transform:translateX(2px)}
 .s-item:hover svg{opacity:0.9;color:#E63946}
@@ -94,8 +95,11 @@ body{background:linear-gradient(135deg,#EEF2FF 0%,#F0F2F8 50%,#FFF5F5 100%);back
 .stat-s{font-size:12px;color:var(--t2)}
 
 /* CARDS */
-.card{background:var(--w);border:1px solid var(--br);border-radius:16px;padding:22px;box-shadow:var(--shadow-sm);transition:box-shadow 0.2s ease}
-.card:hover{box-shadow:var(--shadow)}
+.card{background:var(--w);border:1px solid var(--br);border-radius:16px;padding:22px;box-shadow:var(--shadow-sm);transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#E63946,#FF6B6B);transform:scaleX(0);transition:transform 0.3s ease;transform-origin:left}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(13,188,188,0.12),0 4px 12px rgba(0,0,0,0.06);border-color:rgba(13,188,188,0.25);background:linear-gradient(135deg,#ffffff 0%,#f0fffe 100%)}
+.card:hover::before{transform:scaleX(1)}
+.card:hover .card-t{color:#0d9488}
 .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .card-t{background:linear-gradient(135deg,#0F172A 0%,#334155 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
@@ -107,7 +111,7 @@ body{background:linear-gradient(135deg,#EEF2FF 0%,#F0F2F8 50%,#FFF5F5 100%);back
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;border-spacing:0;font-size:13px}
 thead th{background:linear-gradient(180deg,#F8FAFC 0%,#F1F5F9 100%);color:#64748B;font-size:11px;letter-spacing:0.8px;padding:10px 14px;position:sticky;top:0;z-index:1;text-align:left;font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--br);white-space:nowrap}
-tbody td{padding:11px 12px;border-bottom:1px solid var(--br);vertical-align:middle;font-size:14px;line-height:1.5}
+tbody td{padding:11px 12px;border-bottom:1px solid var(--br);vertical-align:middle;font-size:15px;line-height:1.5}
 tbody tr{transition:all 0.15s cubic-bezier(0.4,0,0.2,1)}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:linear-gradient(135deg,#FFF5F5 0%,#FEF2F2 100%)}
@@ -123,7 +127,7 @@ tbody tr:hover td:last-child{border-right:3px solid rgba(230,57,70,0.1)}
 .tag-n{background:linear-gradient(135deg,#F8FAFC,#F1F5F9);color:#475569}
 
 /* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;font-family:'Plus Jakarta Sans',sans-serif;line-height:1}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;font-family:'Plus Jakarta Sans',sans-serif;line-height:1}
 .btn-p{background:linear-gradient(135deg,#E63946 0%,#B5282F 100%);color:#fff;box-shadow:0 4px 14px rgba(230,57,70,0.3);border-radius:8px;transition:all 0.2s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden}
 .btn-p::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent);opacity:0;transition:opacity 0.2s}
 .btn-p:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(230,57,70,0.45)}
@@ -274,16 +278,8 @@ textarea{resize:vertical;min-height:72px}
 /* Móvil (< 768px) */
 @media (max-width: 768px) {
   .layout{flex-direction:column}
-  .sidebar{width:100%;min-width:100%;height:65px;position:fixed;bottom:0;left:0;right:0;top:auto;flex-direction:row;align-items:center;justify-content:space-around;background:rgba(10,14,26,0.97);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.08);padding:0 8px;z-index:1000;overflow:visible}
-  .s-logo,.s-sec,.s-foot{display:none !important}
-  .s-item{flex-direction:column;gap:3px;padding:6px 4px;margin:0;width:auto;flex:1;min-width:0;border-radius:0;font-size:9px;text-align:center;white-space:nowrap;transform:none !important;background:none !important;border:none;max-width:70px}
-  .s-item svg{width:22px;height:22px;opacity:0.6;margin:0 auto}
-  .s-item.on{background:none !important;box-shadow:none !important}
-  .s-item.on svg{opacity:1;color:#E63946}
-  .s-item.on span{color:#E63946;font-weight:700}
-  .s-item.on::before{top:-1px;left:25%;right:25%;bottom:auto;width:auto;height:2px;border-radius:0 0 2px 2px;box-shadow:0 0 6px rgba(230,57,70,0.8)}
-  .s-item span{font-size:9px;display:block;overflow:hidden;text-overflow:ellipsis;max-width:60px}
-  .main{padding-bottom:70px;height:100svh;overflow-y:auto}
+  .sidebar{display:none}
+  .main{height:100svh;overflow-y:auto}
   .topbar{padding:0 14px;height:54px}
   .topbar-t{font-size:16px;font-weight:700}
   .content{padding:16px 14px 24px}
@@ -811,13 +807,13 @@ function Login({ onLogin }) {
             src="/logo.jpg"
             alt="EDUCATRAN"
             style={{
-              width: 140,
+              width: 200,
               height: 'auto',
               objectFit: 'contain',
-              margin: '0 auto 16px',
+              margin: '0 auto 20px',
               display: 'block',
-              filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.3))',
-              borderRadius: 12
+              filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.4))',
+              borderRadius: 16
             }}
           />
           <h1 className="l-h">EDUCATRAN</h1>
@@ -3372,11 +3368,57 @@ const PAGES = { dashboard:Dashboard, donaciones:Donaciones, patrocinadores:Patro
 const ROLE_LABELS = { admin:'Administrador', gestor:'Gestor', bombero:'Bombero', auditor:'Auditor' }
 
 // ─── SHELL ────────────────────────────────────────────────────────────────────
+function MobileNav({ visible, page, setPage, openGroup, setOpenGroup, onLogout, nombre, apellido }) {
+  const groups = [
+    { label: 'Fondos', icon: '💰', sec: 'Fondos' },
+    { label: 'Admin', icon: '⚙️', sec: 'Admin' },
+    { label: 'Ops', icon: '🚒', sec: 'Operaciones' }
+  ]
+  const noSec = visible.filter(n => !n.sec)
+
+  return (
+    <div style={{ position: 'fixed', top: 54, left: 0, right: 0, background: 'rgba(10,14,26,0.98)', backdropFilter: 'blur(20px)', zIndex: 999, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', height: 52, gap: 4, overflowX: 'auto' }}>
+        {noSec.map(item => (
+          <button key={item.id} onClick={() => { setPage(item.id); setOpenGroup(null) }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, border: 'none', background: page === item.id ? 'rgba(230,57,70,0.2)' : 'none', color: page === item.id ? '#E63946' : 'rgba(255,255,255,0.6)', cursor: 'pointer', minWidth: 60, flexShrink: 0, fontSize: 10, fontWeight: page === item.id ? 700 : 500 }}>
+            <span style={{fontSize:20}}>{item.icon || '🏠'}</span>
+            {item.label}
+          </button>
+        ))}
+        {groups.map(g => visible.filter(n => n.sec === g.sec).length > 0 && (
+          <button key={g.label} onClick={() => setOpenGroup(openGroup === g.label ? null : g.label)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, border: 'none', background: openGroup === g.label || visible.filter(n => n.sec === g.sec).some(i => i.id === page) ? 'rgba(230,57,70,0.2)' : 'none', color: openGroup === g.label || visible.filter(n => n.sec === g.sec).some(i => i.id === page) ? '#E63946' : 'rgba(255,255,255,0.6)', cursor: 'pointer', minWidth: 64, flexShrink: 0, fontSize: 10, fontWeight: 600 }}>
+            <span style={{fontSize:18}}>{g.icon}</span>
+            {g.label} {openGroup === g.label ? '▲' : '▼'}
+          </button>
+        ))}
+      </div>
+      {openGroup && (
+        <div style={{ padding: '8px 12px 12px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          {visible.filter(n => n.sec === groups.find(g => g.label === openGroup)?.sec).map(item => (
+            <button key={item.id} onClick={() => { setPage(item.id); setOpenGroup(null) }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 8px', borderRadius: 12, border: 'none', background: page === item.id ? 'rgba(230,57,70,0.2)' : 'rgba(255,255,255,0.04)', color: page === item.id ? '#fff' : 'rgba(255,255,255,0.65)', cursor: 'pointer', fontSize: 11, fontWeight: page === item.id ? 700 : 500, boxShadow: page === item.id ? 'inset 0 0 0 1px rgba(230,57,70,0.3)' : 'none', transition: 'all 0.15s ease' }}>
+              <span style={{fontSize:22, opacity: page === item.id ? 1 : 0.8}}>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Shell({ user, onLogout }) {
   const role = user?.perfil?.roles?.nombre || 'admin'
   const visible = NAV.filter(n => n.roles.includes(role))
   const defaultPage = role === 'bombero' ? 'visitas' : 'dashboard'
   const [page, setPage] = useState(defaultPage)
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
+  const [openGroup, setOpenGroup] = useState(null)
+
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
 
   const sections = [...new Set(visible.filter(n => n.sec).map(n => n.sec))]
   const noSec = visible.filter(n => !n.sec)
@@ -3387,17 +3429,18 @@ function Shell({ user, onLogout }) {
 
   return (
     <div className="layout">
-      <nav className="sidebar">
+      {isMobile && <MobileNav visible={visible} page={page} setPage={setPage} openGroup={openGroup} setOpenGroup={setOpenGroup} onLogout={onLogout} nombre={nombre} apellido={apellido} />}
+      {!isMobile && <nav className="sidebar">
         <div className="s-logo">
           <img
             src="/logo.jpg"
             alt="E"
             style={{
-              width: 38,
-              height: 38,
+              width: 42,
+              height: 42,
               objectFit: 'cover',
               borderRadius: 10,
-              boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
               flexShrink: 0
             }}
           />
@@ -3433,9 +3476,9 @@ function Shell({ user, onLogout }) {
             {IC.out} Cerrar Sesion
           </button>
         </div>
-      </nav>
+      </nav>}
 
-      <div className="main">
+      <div className="main" style={{ paddingTop: isMobile ? (openGroup ? '120px' : '106px') : 0 }}>
         <div className="topbar">
           <span className="topbar-t">{pageLabel}</span>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
