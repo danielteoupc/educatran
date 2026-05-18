@@ -175,6 +175,8 @@ textarea{resize:vertical;min-height:72px}
 @keyframes overlayIn{from{opacity:0}to{opacity:1}}
 .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .ring{width:24px;height:24px;border:2px solid var(--br);border-top-color:var(--r);border-radius:50%;animation:sp .7s linear infinite}
 .loader{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--t2)}
 
@@ -819,12 +821,17 @@ function Login({ onLogin }) {
             }}
           />
           <h1 className="l-h">EDUCATRAN</h1>
-          <p className="l-sub">Sistema de gestion de donaciones para seguridad vial y educacion infantil</p>
-          <div style={{ margin:'28px 0', display:'flex', gap:20, justifyContent:'center' }}>
-            {[['🚗','Marcas'],['🎮','Juegos'],['🚒','Bomberos'],['🏫','Colegios']].map(([e,l]) => (
-              <div key={l} style={{ textAlign:'center' }}>
-                <div style={{ fontSize:22, marginBottom:3 }}>{e}</div>
-                <div style={{ color:'rgba(255,255,255,.3)', fontSize:10 }}>{l}</div>
+          <p className="l-sub" style={{ textAlign:'center', margin:'0 auto 28px' }}>Sistema de gestion de donaciones para seguridad vial y educacion infantil</p>
+          <div style={{ margin:'28px 0', display:'flex', gap:30, justifyContent:'center' }}>
+            {[
+              {e:'🚗',l:'Marcas',bg:'linear-gradient(135deg,#EF4444,#DC2626)',color:'#EF4444'},
+              {e:'🎮',l:'Juegos',bg:'linear-gradient(135deg,#A855F7,#7C3AED)',color:'#A855F7'},
+              {e:'🚒',l:'Bomberos',bg:'linear-gradient(135deg,#DC2626,#B91C1C)',color:'#DC2626'},
+              {e:'🏫',l:'Colegios',bg:'linear-gradient(135deg,#F97316,#EA580C)',color:'#F97316'}
+            ].map(({e,l,bg,color}) => (
+              <div key={l} style={{ textAlign:'center' }} onMouseEnter={e => { e.currentTarget.querySelector('.icon-circle').style.transform='scale(1.15)'; e.currentTarget.querySelector('.icon-circle').style.boxShadow=`0 8px 32px ${color}44, 0 0 20px ${color}66` }} onMouseLeave={e => { e.currentTarget.querySelector('.icon-circle').style.transform='scale(1)'; e.currentTarget.querySelector('.icon-circle').style.boxShadow='0 4px 12px rgba(0,0,0,0.3)' }}>
+                <div className="icon-circle" style={{ fontSize:32, width:60, height:60, background:bg, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', animation:'float 3s ease-in-out infinite', boxShadow:'0 4px 12px rgba(0,0,0,0.3)', transition:'all 0.3s ease', cursor:'pointer' }}>{e}</div>
+                <div style={{ color:'rgba(255,255,255,1)', fontSize:12, fontWeight:600, letterSpacing:'0.5px' }}>{l}</div>
               </div>
             ))}
           </div>
