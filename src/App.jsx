@@ -643,11 +643,67 @@ function ModalDetalle({ data, onClose }) {
 }
 
 // ─── EXPORTACIÓN Y PDF ────────────────────────────────────────────────────────
-function exportXLSX(rows, filename) {
-  const ws = XLSX.utils.json_to_sheet(rows)
+function exportXLSX(rows, filename, reportTitle = filename) {
   const wb = XLSX.utils.book_new()
+  const wsData = []
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('es-PE', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  const timeStr = now.toLocaleTimeString('es-PE')
+
+  // Encabezado
+  wsData.push([])
+  wsData.push(['EDUCATRAN - PATROCINIOS VIALES', '', '', '', '', ''])
+  wsData.push([reportTitle, '', '', '', '', ''])
+  wsData.push([`Generado el: ${dateStr} ${timeStr}`, '', '', '', '', ''])
+  wsData.push([])
+  wsData.push(Object.keys(rows[0] || {}))
+
+  // Datos
+  rows.forEach(row => {
+    wsData.push(Object.values(row))
+  })
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData)
+
+  // Estilos
+  const headerFill = { fgColor: { rgb: '1a1a2e' } }
+  const headerFont = { bold: true, color: { rgb: 'FFFFFF' }, sz: 14 }
+  const subtitleFill = { fgColor: { rgb: 'c0392b' } }
+  const subtitleFont = { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 }
+  const colHeaderFill = { fgColor: { rgb: '2c3e50' } }
+  const colHeaderFont = { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 }
+  const grayFill = { fgColor: { rgb: 'f8f9fa' } }
+  const border = { left: { style: 'thin' }, right: { style: 'thin' }, top: { style: 'thin' }, bottom: { style: 'thin' } }
+
+  // Aplicar estilos header
+  ws['A2'] = { v: 'EDUCATRAN - PATROCINIOS VIALES', s: { fill: headerFill, font: headerFont, alignment: { horizontal: 'center', vertical: 'center' }, border } }
+  ws['A3'] = { v: reportTitle, s: { fill: subtitleFill, font: subtitleFont, alignment: { horizontal: 'center' }, border } }
+  ws['A4'] = { v: `Generado el: ${dateStr} ${timeStr}`, s: { font: { sz: 10, color: { rgb: '666666' } }, alignment: { horizontal: 'left' }, border } }
+
+  // Column headers (fila 6)
+  const cols = Object.keys(rows[0] || {})
+  for (let i = 0; i < cols.length; i++) {
+    const cellRef = XLSX.utils.encode_cell({ r: 5, c: i })
+    if (!ws[cellRef]) ws[cellRef] = {}
+    ws[cellRef].s = { fill: colHeaderFill, font: colHeaderFont, alignment: { horizontal: 'center', vertical: 'center' }, border }
+  }
+
+  // Datos con estilos
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = 0; j < cols.length; j++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 6 + i, c: j })
+      if (!ws[cellRef]) ws[cellRef] = {}
+      const bgColor = i % 2 === 0 ? 'FFFFFF' : 'f8f9fa'
+      ws[cellRef].s = { fill: { fgColor: { rgb: bgColor } }, alignment: { horizontal: 'left', vertical: 'center' }, border }
+    }
+  }
+
+  // Ancho de columnas
+  ws['!cols'] = cols.map(col => ({ wch: Math.max(15, col.length + 2) }))
+  ws['!rows'] = [{ hpx: 40 }, {}, {}, {}, {}, { hpx: 25 }, ...rows.map(() => ({ hpx: 20 }))]
+
   XLSX.utils.book_append_sheet(wb, ws, 'Datos')
-  XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`)
+  XLSX.writeFile(wb, `${filename}_${dateStr.replace(/\//g, '-')}.xlsx`)
 }
 
 function pdfContrato(row, download = true) {
@@ -1104,7 +1160,7 @@ function Dashboard({ onNavigate }) {
     ])
     const wb = XLSX.utils.book_new()
     const resumen = [
-      { Concepto: 'Total Donaciones Recibidas', Valor: (rD.data||[]).filter(d=>d.estado==='recibida').reduce((a,d)=>a+d.monto,0) },
+      { Concepto: 'Total Patrocinios Recibidos', Valor: (rD.data||[]).filter(d=>d.estado==='recibida').reduce((a,d)=>a+d.monto,0) },
       { Concepto: 'Total Gastos Aprobados', Valor: (rGas.data||[]).filter(g=>g.estado==='aprobado').reduce((a,g)=>a+g.monto,0) },
       { Concepto: 'Total Comisiones Pagadas', Valor: (rG.data||[]).filter(c=>c.estado==='pagado').reduce((a,c)=>a+c.monto_comision,0) },
       { Concepto: 'Total Kits Entregados', Valor: (rV.data||[]).reduce((a,v)=>a+(v.cantidad_kits_entregados||0),0) },
@@ -1121,7 +1177,7 @@ function Dashboard({ onNavigate }) {
       'Metodo': d.metodo_pago,
       'Estado': d.estado,
     }))
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(donacionesExcel), 'Donaciones')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(donacionesExcel), 'Patrocinios')
     const gastosExcel = (rGas.data||[]).map(g => ({
       'Tipo': g.tipo,
       'Categoria': g.categoria,
@@ -1269,7 +1325,7 @@ function exportarDonaciones(rows) {
     'Metodo': r.metodo_pago,
     'Estado': r.estado,
   }))
-  exportXLSX(filas, 'Donaciones')
+  exportXLSX(filas, 'Patrocinios', 'REPORTE DE PATROCINIOS')
 }
 
 function FmDonacion({ onClose, onSave, onError, initial }) {
@@ -1481,7 +1537,7 @@ function exportarGestores(rows) {
     'Comisiones Pagadas': r.total_comisiones_pagadas,
     'Estado': r.activo ? 'Activo' : 'Inactivo',
   }))
-  exportXLSX(filas, 'Gestores')
+  exportXLSX(filas, 'Gestores', 'REPORTE DE GESTORES')
 }
 
 function FmGestor({ onClose, onSave, onError, initial }) {
@@ -1549,7 +1605,7 @@ function exportarPatrocinadores(rows) {
     'Total Donado': r.total_donado,
     'Estado': r.activo ? 'Activo' : 'Inactivo',
   }))
-  exportXLSX(filas, 'Patrocinadores')
+  exportXLSX(filas, 'Patrocinadores', 'REPORTE DE PATROCINADORES')
 }
 
 function FmPatrocinador({ onClose, onSave, onError, initial }) {
@@ -1695,7 +1751,7 @@ function exportarEstaciones(rows) {
     'Voluntarios': r.num_voluntarios,
     'Estado': r.activa ? 'Activa' : 'Inactiva',
   }))
-  exportXLSX(filas, 'Estaciones')
+  exportXLSX(filas, 'Estaciones', 'REPORTE DE ESTACIONES BOMBEROS')
 }
 
 // ─── GALERIA DE FOTOS ─────────────────────────────────────────────────────────
@@ -2106,7 +2162,7 @@ function exportarColegios(rows) {
     'Estacion': r.estacion_id ? 'Asignada' : 'Sin asignar',
     'Estado': r.activo ? 'Activo' : 'Inactivo',
   }))
-  exportXLSX(filas, 'Colegios')
+  exportXLSX(filas, 'Colegios', 'REPORTE DE COLEGIOS')
 }
 
 function FmColegio({ onClose, onSave, onError, initial }) {
@@ -2317,7 +2373,7 @@ function exportarVisitas(rows) {
     'Temas Tratados': r.temas_tratados,
     'Estado': r.estado,
   }))
-  exportXLSX(filas, 'Visitas')
+  exportXLSX(filas, 'Visitas', 'REPORTE DE VISITAS Y ENTREGAS')
 }
 
 function FmVisita({ onClose, onSave, onError, initial }) {
@@ -2586,7 +2642,7 @@ function exportarInventario(rows) {
     'Motivo': r.motivo || '—',
     'Observaciones': r.observaciones || '—',
   }))
-  exportXLSX(filas, 'Inventario_Kits')
+  exportXLSX(filas, 'Inventario_Kits', 'REPORTE DE INVENTARIO DE KITS')
 }
 
 function FmInventario({ onClose, onSave, onError, initial }) {
@@ -2891,7 +2947,7 @@ function exportarContratos(rows) {
     'Fecha Fin': r.fecha_fin,
     'Estado': r.estado,
   }))
-  exportXLSX(filas, 'Contratos')
+  exportXLSX(filas, 'Contratos', 'REPORTE DE CONTRATOS')
 }
 
 function FmContrato({ onClose, onSave, onError, initial }) {
@@ -2978,7 +3034,7 @@ function exportarGastos(rows) {
     'Fecha': r.fecha,
     'Estado': r.estado,
   }))
-  exportXLSX(filas, 'Gastos')
+  exportXLSX(filas, 'Gastos', 'REPORTE DE GASTOS')
 }
 
 function FmGasto({ onClose, onSave, onError, initial }) {
@@ -3050,7 +3106,7 @@ function exportarComisiones(rows) {
     'Metodo': r.metodo_pago,
     'Estado': r.estado,
   }))
-  exportXLSX(filas, 'Comisiones')
+  exportXLSX(filas, 'Comisiones', 'REPORTE DE COMISIONES')
 }
 
 function FmComision({ onClose, onSave, onError, initial }) {
