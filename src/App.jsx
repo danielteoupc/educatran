@@ -230,7 +230,7 @@ textarea{resize:vertical;min-height:72px}
 .ib-g{background:var(--gb);color:#065F46;border:1px solid #A7F3D0}
 
 /* STATION HOVER CARD */
-.st-card{position:fixed;left:220px;width:260px;background:var(--w);border:1px solid var(--br);border-radius:var(--radl);box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:999;animation:stFadeIn .15s ease}
+.st-card{position:absolute;width:260px;background:var(--w);border:1px solid var(--br);border-radius:var(--radl);box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:9999;animation:stFadeIn .15s ease}
 .st-card-logo{background:#FEF2F2;border-radius:var(--radl) var(--radl) 0 0;padding:20px;display:flex;align-items:center;justify-content:center;min-height:120px}
 .st-card-logo img{width:80px;height:80px;object-fit:contain}
 .st-card-logo-emoji{font-size:64px}
@@ -1204,7 +1204,7 @@ function Dashboard({ onNavigate }) {
                 {dons.length === 0
                   ? <tr><td colSpan={3} style={{ textAlign:'center', color:'var(--t3)', padding:30 }}>Sin donaciones aun</td></tr>
                   : dons.map((d,i) => (
-                    <tr key={i}>
+                    <tr key={i} onMouseEnter={e => e.currentTarget.style.backgroundColor='#86efac'} onMouseLeave={e => e.currentTarget.style.backgroundColor='transparent'}>
                       <td><strong>{d.patrocinadores?.nombre_comercial||'—'}</strong><div style={{ color:'var(--t3)', fontSize:11 }}>Gestor: {d.gestores ? `${d.gestores.nombre} ${d.gestores.apellido}` : '—'}</div></td>
                       <td><span className="amt">{fmt(d.monto)}</span></td>
                       <td><Tag s={d.estado} /></td>
@@ -1990,33 +1990,35 @@ function Estaciones() {
             <button className="btn btn-p" onClick={() => setModal(true)}>{IC.plus}Nueva Estacion</button>
           </div>
         </div>
-        <div className="tbl-wrap">
-          {loading
-            ? <div className="loader"><div className="ring" /> Cargando...</div>
-            : <table>
-                <thead><tr>{cols.map(c => <th key={c.key}>{c.label}</th>)}<th>Acciones</th></tr></thead>
-                <tbody>
-                  {data.length === 0
-                    ? <tr><td colSpan={cols.length+1} style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</td></tr>
-                    : data.map((row, i) => (
-                      <tr key={row.id||i} onMouseEnter={e => handleRowHover(row, e)} onMouseLeave={() => setHoveredStation(null)}>
-                        {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
-                        <td>
-                          <div style={{ display:'flex', gap:4 }}>
-                            <button className="btn btn-s btn-sm" title="Fotos" onClick={() => setGaleriaRow(row)}>📷</button>
-                            <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
-                            <button className="btn btn-s btn-sm" title="Ver" onClick={() => setViewRow(row)}>👁️</button>
-                            <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => setDeleteRow(row)}>🗑️</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-          }
+        <div style={{ position:'relative', overflow:'visible' }}>
+          <div className="tbl-wrap">
+            {loading
+              ? <div className="loader"><div className="ring" /> Cargando...</div>
+              : <table>
+                  <thead><tr>{cols.map(c => <th key={c.key}>{c.label}</th>)}<th>Acciones</th></tr></thead>
+                  <tbody>
+                    {data.length === 0
+                      ? <tr><td colSpan={cols.length+1} style={{ textAlign:'center', color:'var(--t3)', padding:40 }}>Sin registros</td></tr>
+                      : data.map((row, i) => (
+                        <tr key={row.id||i} onMouseEnter={e => handleRowHover(row, e)} onMouseLeave={() => setHoveredStation(null)}>
+                          {cols.map(c => <td key={c.key}>{c.render ? c.render(row[c.key], row) : (row[c.key]??'—')}</td>)}
+                          <td>
+                            <div style={{ display:'flex', gap:4 }}>
+                              <button className="btn btn-s btn-sm" title="Fotos" onClick={() => setGaleriaRow(row)}>📷</button>
+                              <button className="btn btn-s btn-sm" title="Editar" onClick={() => setEditRow(row)}>✏️</button>
+                              <button className="btn btn-s btn-sm" title="Ver" onClick={() => setViewRow(row)}>👁️</button>
+                              <button className="btn btn-s btn-sm" title="Eliminar" style={{color:'var(--e)'}} onClick={() => setDeleteRow(row)}>🗑️</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
+                </table>
+            }
+          </div>
+          <StationHoverCard station={hoveredStation} position={hoverPos} />
         </div>
-        <StationHoverCard station={hoveredStation} position={hoverPos} />
       </div>
 
       {modal && (
