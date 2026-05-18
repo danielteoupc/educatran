@@ -27,7 +27,9 @@
       "Skill(frontend-design:frontend-design)",
       "Bash(grep -n \"^\\\\`\\\\|const.*=\\\\s*\\\\`\\\\|<style\" src/App.jsx)",
       "Bash(copy \"C:\\\\CVEDUCATRAN\\\\educatran\\\\img\\\\FONDO3.jpg\" \"C:\\\\CVEDUCATRAN\\\\educatran\\\\public\\\\fondo3.jpg\")",
-      "Bash(dir \"C:\\\\CVEDUCATRAN\\\\educatran\\\\public\\\\\" | findstr /I \"fondo\\\\|logo\")"
+      "Bash(dir \"C:\\\\CVEDUCATRAN\\\\educatran\\\\public\\\\\" | findstr /I \"fondo\\\\|logo\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\CVEDUCATRAN\\\\educatran\\\\src\\\\img\" -Name)",
+      "Bash(Select-String \"fondo1\")"
     ]
   }
 }

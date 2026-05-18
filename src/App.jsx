@@ -81,13 +81,14 @@ body{background:linear-gradient(135deg,#EEF2FF 0%,#F0F2F8 50%,#FFF5F5 100%);back
 .topbar-t{background:linear-gradient(135deg,#0F172A 0%,#E63946 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700}
 
 /* CONTENT */
-.content{padding:26px;flex:1;animation:pageIn 0.3s cubic-bezier(0.4,0,0.2,1)}
+.content{padding:26px;flex:1;animation:pageIn 0.3s cubic-bezier(0.4,0,0.2,1);position:relative}
+.content::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;backgroundImage:url(/fondo1.jpeg);backgroundSize:cover;backgroundPosition:center;opacity:0.07;zIndex:0;pointerEvents:none}
 
 /* STAT CARDS */
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
 .stat{background:var(--w);border:1px solid var(--br);border-radius:16px;padding:20px;cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden}
 .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#E63946,#FF6B6B,#E63946);transform:scaleX(0);transition:transform 0.3s ease}
-.stat:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(230,57,70,0.12),0 4px 12px rgba(0,0,0,0.06);border-color:rgba(230,57,70,0.2)}
+.stat:hover{background:linear-gradient(135deg,#fff5f5 0%,#ffe8e8 100%);transform:translateY(-3px);box-shadow:0 16px 40px rgba(230,57,70,0.15),0 8px 24px rgba(230,57,70,0.1);border-color:rgba(230,57,70,0.3);transition:all 0.25s ease}
 .stat:hover::before{transform:scaleX(1)}
 .stat-ico{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:11px;box-shadow:var(--shadow-sm)}
 .stat-l{font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
@@ -3438,10 +3439,12 @@ function Shell({ user, onLogout }) {
             src="/logo.jpg"
             alt="EDUCATRAN"
             style={{
-              width: 52,
-              height: 52,
-              objectFit: 'cover',
-              borderRadius: 12,
+              width: 64,
+              height: 64,
+              objectFit: 'contain',
+              borderRadius: 10,
+              background: '#FFFFFF',
+              padding: 4,
               boxShadow: '0 4px 16px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.15)',
               flexShrink: 0
             }}
