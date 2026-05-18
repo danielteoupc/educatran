@@ -821,17 +821,17 @@ function Login({ onLogin }) {
             }}
           />
           <h1 className="l-h">EDUCATRAN</h1>
-          <p className="l-sub" style={{ textAlign:'center', margin:'0 auto 28px' }}>Sistema de gestion de donaciones para seguridad vial y educacion infantil</p>
-          <div style={{ margin:'28px 0', display:'flex', gap:30, justifyContent:'center' }}>
+          <p className="l-sub" style={{ textAlign:'center', margin:'0 auto 28px' }}>Sistema de gestion de patrocinios para seguridad vial y educacion infantil</p>
+          <div style={{ margin:'28px 0', display:'flex', gap:24, justifyContent:'center' }}>
             {[
-              {e:'🚗',l:'Marcas',bg:'linear-gradient(135deg,#EF4444,#DC2626)',color:'#EF4444'},
-              {e:'🎮',l:'Juegos',bg:'linear-gradient(135deg,#A855F7,#7C3AED)',color:'#A855F7'},
-              {e:'🚒',l:'Bomberos',bg:'linear-gradient(135deg,#DC2626,#B91C1C)',color:'#DC2626'},
-              {e:'🏫',l:'Colegios',bg:'linear-gradient(135deg,#F97316,#EA580C)',color:'#F97316'}
-            ].map(({e,l,bg,color}) => (
-              <div key={l} style={{ textAlign:'center' }} onMouseEnter={e => { e.currentTarget.querySelector('.icon-circle').style.transform='scale(1.15)'; e.currentTarget.querySelector('.icon-circle').style.boxShadow=`0 8px 32px ${color}44, 0 0 20px ${color}66` }} onMouseLeave={e => { e.currentTarget.querySelector('.icon-circle').style.transform='scale(1)'; e.currentTarget.querySelector('.icon-circle').style.boxShadow='0 4px 12px rgba(0,0,0,0.3)' }}>
-                <div className="icon-circle" style={{ fontSize:32, width:60, height:60, background:bg, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', animation:'float 3s ease-in-out infinite', boxShadow:'0 4px 12px rgba(0,0,0,0.3)', transition:'all 0.3s ease', cursor:'pointer' }}>{e}</div>
-                <div style={{ color:'rgba(255,255,255,1)', fontSize:12, fontWeight:600, letterSpacing:'0.5px' }}>{l}</div>
+              {e:'🚗',l:'Marcas',bg:'linear-gradient(135deg,#EF4444,#DC2626)',color:'#EF4444',delay:'0s'},
+              {e:'🎮',l:'Juegos',bg:'linear-gradient(135deg,#A855F7,#7C3AED)',color:'#A855F7',delay:'0.3s'},
+              {e:'🚒',l:'Bomberos',bg:'linear-gradient(135deg,#DC2626,#B91C1C)',color:'#DC2626',delay:'0.6s'},
+              {e:'🏫',l:'Colegios',bg:'linear-gradient(135deg,#F97316,#EA580C)',color:'#F97316',delay:'0.9s'}
+            ].map(({e,l,bg,color,delay}) => (
+              <div key={l} style={{ textAlign:'center' }} onMouseEnter={e => { e.currentTarget.querySelector('.icon-circle').style.transform='scale(1.2)'; e.currentTarget.querySelector('.icon-circle').style.boxShadow=`0 12px 40px ${color}55, 0 0 24px ${color}77` }} onMouseLeave={e => { e.currentTarget.querySelector('.icon-circle').style.transform='scale(1)'; e.currentTarget.querySelector('.icon-circle').style.boxShadow='0 8px 24px rgba(0,0,0,0.4)' }}>
+                <div className="icon-circle" style={{ fontSize:36, width:70, height:70, background:bg, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 8px', animation:`float 3.5s ease-in-out infinite ${delay}`, boxShadow:'0 8px 24px rgba(0,0,0,0.4)', transition:'all 0.3s ease', cursor:'pointer' }}>{e}</div>
+                <div style={{ color:'rgba(255,255,255,1)', fontSize:13, fontWeight:700, letterSpacing:'0.5px', marginTop:8 }}>{l}</div>
               </div>
             ))}
           </div>
