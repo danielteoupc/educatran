@@ -1169,7 +1169,7 @@ function Dashboard({ onNavigate }) {
       </div>
       <div className="stats">
         {statCards.map(x => (
-          <div key={x.l} className="stat" style={{ cursor:'pointer', transition:'all .15s' }} onClick={() => onNavigate?.(x.page)} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}>
+          <div key={x.l} className="stat" style={{ cursor:'pointer', transition:'all 0.2s ease' }} onClick={() => onNavigate?.(x.page)} onMouseEnter={e => { e.currentTarget.style.backgroundColor='#bae6fd'; e.currentTarget.style.borderTop='2px solid #0284c7'; e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow='0 8px 24px rgba(2,132,199,0.25)' }} onMouseLeave={e => { e.currentTarget.style.backgroundColor='transparent'; e.currentTarget.style.borderTop='none'; e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none' }}>
             <div className="stat-ico" style={{ background:x.bg }}>{x.ico}</div>
             <div className="stat-l">{x.l}</div>
             <div className="stat-v" style={{ color:x.vc }}>{x.v}</div>
