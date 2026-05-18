@@ -809,7 +809,7 @@ function Login({ onLogin }) {
             src="/logo.jpg"
             alt="EDUCATRAN"
             style={{
-              width: 200,
+              width: 400,
               height: 'auto',
               objectFit: 'contain',
               margin: '0 auto 20px',
