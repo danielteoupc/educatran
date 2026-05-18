@@ -261,6 +261,63 @@ textarea{resize:vertical;min-height:72px}
 .lightbox-desc{color:#fff;margin-top:16px;text-align:center;max-width:600px}
 .lightbox-close{position:absolute;top:20px;right:20px;width:40px;height:40px;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:24px;cursor:pointer;border-radius:50%;transition:background .2s}
 .lightbox-close:hover{background:rgba(255,255,255,.3)}
+
+/* ── RESPONSIVE ── */
+
+/* Tablet (768px - 1024px) */
+@media (max-width: 1024px) {
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:1fr}
+  .g3{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Móvil (< 768px) */
+@media (max-width: 768px) {
+  .layout{flex-direction:column;height:100vh}
+  .sidebar{width:100%;min-width:100%;height:auto;flex-direction:row;position:fixed;bottom:0;left:0;right:0;z-index:100;background:#0D1117;border-top:1px solid rgba(255,255,255,0.1);border-right:none;padding:0;overflow-x:auto;overflow-y:hidden}
+  .s-logo,.s-sec,.s-foot{display:none}
+  .s-item{flex-direction:column;gap:3px;padding:8px 12px;margin:0;width:auto;min-width:64px;border-radius:0;font-size:9px;text-align:center;white-space:nowrap;transform:none !important}
+  .s-item svg{width:20px;height:20px;opacity:0.7}
+  .s-item.on{background:rgba(230,57,70,0.15)}
+  .s-item.on::before{top:0;left:20%;right:20%;bottom:auto;width:auto;height:2px;border-radius:0 0 3px 3px}
+  .main{padding-bottom:70px;height:100vh;overflow-y:auto}
+  .topbar{padding:0 16px;height:52px}
+  .topbar-t{font-size:15px}
+  .content{padding:16px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+  .stat{padding:14px;border-radius:12px}
+  .stat-v{font-size:18px}
+  .stat-ico{width:32px;height:32px;margin-bottom:8px}
+  .g2,.g3{grid-template-columns:1fr;gap:12px}
+  .fin-bar{flex-direction:column;gap:8px}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:600px}
+  thead th{font-size:9px;padding:8px 10px}
+  tbody td{padding:9px 10px;font-size:12px}
+  .overlay{padding:0;align-items:flex-end}
+  .modal{border-radius:20px 20px 0 0;max-height:92vh;max-width:100%;width:100%;padding:24px 20px}
+  .fgrid{grid-template-columns:1fr}
+  .full{grid-column:span 1}
+  .lw{grid-template-columns:1fr}
+  .ll{padding:32px 24px;min-height:auto}
+  .lr{padding:32px 24px}
+  .lform{max-width:100%}
+  .l-h{font-size:22px}
+  .l-creds{display:none}
+  .srch{width:140px}
+  .btn{padding:10px 16px;min-height:40px}
+  .btn-ic{width:34px;height:34px}
+  .card{padding:16px;border-radius:12px}
+  .card-h{flex-direction:column;align-items:flex-start;gap:10px}
+}
+
+/* Móvil pequeño (< 480px) */
+@media (max-width: 480px) {
+  .stats{grid-template-columns:1fr 1fr}
+  .stat-v{font-size:16px}
+  .topbar-t{font-size:14px}
+  .content{padding:12px}
+}
 `
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -737,7 +794,19 @@ function Login({ onLogin }) {
     <div className="lw">
       <div className="ll">
         <div style={{ position:'relative', zIndex:1, textAlign:'center' }}>
-          <div className="l-logo">E</div>
+          <img
+            src="/logo.jpg"
+            alt="EDUCATRAN"
+            style={{
+              width: 140,
+              height: 'auto',
+              objectFit: 'contain',
+              margin: '0 auto 16px',
+              display: 'block',
+              filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.3))',
+              borderRadius: 12
+            }}
+          />
           <h1 className="l-h">EDUCATRAN</h1>
           <p className="l-sub">Sistema de gestion de donaciones para seguridad vial y educacion infantil</p>
           <div style={{ margin:'28px 0', display:'flex', gap:20, justifyContent:'center' }}>
@@ -3307,7 +3376,18 @@ function Shell({ user, onLogout }) {
     <div className="layout">
       <nav className="sidebar">
         <div className="s-logo">
-          <div className="s-logo-box">E</div>
+          <img
+            src="/logo.jpg"
+            alt="E"
+            style={{
+              width: 38,
+              height: 38,
+              objectFit: 'cover',
+              borderRadius: 10,
+              boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+              flexShrink: 0
+            }}
+          />
           <div><h1>EDUCATRAN</h1><p>Donaciones Viales</p></div>
         </div>
 
