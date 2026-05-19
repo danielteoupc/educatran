@@ -867,16 +867,17 @@ function Login({ onLogin }) {
             src="/img/logo.jpg"
             alt="EDUCATRAN"
             style={{
-              width: 400,
+              width: 380,
               height: 'auto',
               objectFit: 'contain',
-              margin: '0 auto 20px',
+              borderRadius: '50px',
+              border: '2px solid rgba(255,255,255,0.25)',
+              background: 'rgba(0,0,0,0.3)',
+              backdropFilter: 'blur(8px)',
+              padding: '12px 24px',
+              boxShadow: '0 0 30px rgba(0,200,100,0.2), 0 4px 20px rgba(0,0,0,0.4)',
               display: 'block',
-              border: '3px solid rgba(255,255,255,0.3)',
-              borderRadius: '12px',
-              padding: '8px',
-              background: 'rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(4px)'
+              margin: '0 auto 20px'
             }}
           />
           <h1 className="l-h">EDUCATRAN</h1>
