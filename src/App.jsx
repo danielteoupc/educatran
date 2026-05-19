@@ -183,7 +183,7 @@ textarea{resize:vertical;min-height:72px}
 /* LOGIN */
 .lw{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
 .ll{background:url('/fondo3.jpg') center center / cover no-repeat;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;position:relative;overflow:hidden}
-.ll::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:0}
+.ll::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.45);z-index:0}
 .ll > *{position:relative;z-index:1}
 .lr{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:60px}
 .lform{width:100%;max-width:360px}
@@ -861,10 +861,10 @@ function Login({ onLogin }) {
 
   return (
     <div className="lw">
-      <div className="ll">
+      <div className="ll" style={{ backgroundImage: 'url(/img/FONDO3.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
         <div style={{ position:'relative', zIndex:1, textAlign:'center' }}>
           <img
-            src="/logo.jpg"
+            src="/img/logo.jpg"
             alt="EDUCATRAN"
             style={{
               width: 400,
@@ -872,8 +872,11 @@ function Login({ onLogin }) {
               objectFit: 'contain',
               margin: '0 auto 20px',
               display: 'block',
-              filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.4))',
-              borderRadius: 16
+              border: '3px solid rgba(255,255,255,0.3)',
+              borderRadius: '12px',
+              padding: '8px',
+              background: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(4px)'
             }}
           />
           <h1 className="l-h">EDUCATRAN</h1>
