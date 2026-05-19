@@ -31,7 +31,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\CVEDUCATRAN\\\\educatran\\\\src\\\\img\" -Name)",
       "Bash(Select-String \"fondo1\")",
       "Bash(git revert *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "PowerShell(mkdir *)",
+      "PowerShell(copy *)"
     ]
   }
 }
