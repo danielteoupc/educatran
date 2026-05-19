@@ -872,10 +872,9 @@ function Login({ onLogin }) {
               objectFit: 'contain',
               borderRadius: '50px',
               border: '2px solid rgba(255,255,255,0.25)',
-              background: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(8px)',
-              padding: '12px 24px',
-              boxShadow: '0 0 30px rgba(0,200,100,0.2), 0 4px 20px rgba(0,0,0,0.4)',
+              background: 'transparent',
+              padding: '0',
+              boxShadow: '0 0 25px rgba(0,200,100,0.25)',
               display: 'block',
               margin: '0 auto 20px'
             }}
