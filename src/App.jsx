@@ -182,8 +182,8 @@ textarea{resize:vertical;min-height:72px}
 
 /* LOGIN */
 .lw{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
-.ll{background:url('/fondo3.jpg') center center / cover no-repeat;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;position:relative;overflow:hidden}
-.ll::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:0}
+.ll{background:linear-gradient(135deg, #1a3a2a 0%, #0d2818 50%, #1a3a2a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;position:relative;overflow:hidden}
+.ll::before{content:'';position:absolute;inset:0;background:transparent;z-index:0}
 .ll > *{position:relative;z-index:1}
 .lr{background:var(--bg);display:flex;align-items:center;justify-content:center;padding:60px}
 .lform{width:100%;max-width:360px}
@@ -871,9 +871,7 @@ function Login({ onLogin }) {
               height: 'auto',
               objectFit: 'contain',
               margin: '0 auto 20px',
-              display: 'block',
-              filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.4))',
-              borderRadius: 16
+              display: 'block'
             }}
           />
           <h1 className="l-h">EDUCATRAN</h1>
